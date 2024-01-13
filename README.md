@@ -19,7 +19,3 @@
     ```
 
 How does the above compare to using an external Go module?
-
-# TODO
-
-- How to get autocompletion on raylib?
