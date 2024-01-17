@@ -31,6 +31,7 @@ pub fn main() !void {
 
     // var speed: f32 = 0;
 
+    // TODO: add orientation and angularVelocity (equals rotation axis + rotation speed)
     var cubes = [_]Cube{
         .{
             .position = .{ .x = -16.0, .y = 2.5, .z = 0.0 },
@@ -52,6 +53,18 @@ pub fn main() !void {
         },
     };
 
+    // TODO: is there a way to avoid undefined?
+    var models: [cubes.len]raylib.Model = undefined;
+    for (cubes, 0..) |c, i| {
+        const mesh = raylib.GenMeshCube(c.size.x, c.size.y, c.size.z);
+        const model = raylib.LoadModelFromMesh(mesh);
+        models[i] = model;
+    }
+
+    defer for (models) |m| {
+        raylib.UnloadModel(m);
+    };
+
     while (!raylib.WindowShouldClose()) {
         // Update
         raylib.UpdateCamera(&camera, raylib.CAMERA_FIRST_PERSON);
@@ -65,8 +78,11 @@ pub fn main() !void {
 
             raylib.BeginMode3D(camera);
             {
-                for (cubes) |c| {
-                    raylib.DrawCubeV(c.position, c.size, c.color);
+                for (cubes, models) |c, model| {
+                    const rotationAxis = raylib.Vector3{ .x = 0.0, .y = 1.0, .z = 0.0 };
+                    const rotationAngle: f32 = @floatCast(30.0 * raylib.GetTime());
+                    const scale = raylib.Vector3{ .x = 1, .y = 1, .z = 1 };
+                    raylib.DrawModelEx(model, c.position, rotationAxis, rotationAngle, scale, c.color);
                 }
             }
             raylib.EndMode3D();
@@ -87,15 +103,7 @@ pub fn main() !void {
     const stdout_file = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
-
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    _ = stdout; // autofix
 
     try bw.flush(); // don't forget to flush!
-}
-
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
 }
