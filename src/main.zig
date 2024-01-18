@@ -55,10 +55,9 @@ pub fn main() !void {
 
     // TODO: is there a way to avoid undefined?
     var models: [cubes.len]raylib.Model = undefined;
-    for (cubes, 0..) |c, i| {
+    for (cubes, &models) |c, *m| {
         const mesh = raylib.GenMeshCube(c.size.x, c.size.y, c.size.z);
-        const model = raylib.LoadModelFromMesh(mesh);
-        models[i] = model;
+        m.* = raylib.LoadModelFromMesh(mesh);
     }
 
     defer for (models) |m| {
