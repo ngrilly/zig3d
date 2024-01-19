@@ -22,8 +22,8 @@ pub fn main() !void {
     raylib.SetTargetFPS(60);
 
     var camera = raylib.Camera{
-        .position = raylib.Vector3{ .x = 0, .y = 2, .z = 4 },
-        .target = raylib.Vector3{ .x = 0, .y = 2, .z = 0 },
+        .position = raylib.Vector3{ .x = 0, .y = 2, .z = -15 },
+        .target = raylib.Vector3{ .x = 0, .y = 0, .z = 0 },
         .up = raylib.Vector3{ .x = 0, .y = 1, .z = 0 },
         .fovy = 60,
         .projection = raylib.CAMERA_PERSPECTIVE,
@@ -34,20 +34,20 @@ pub fn main() !void {
     // TODO: add orientation and angularVelocity (equals rotation axis + rotation speed)
     var cubes = [_]Cube{
         .{
-            .position = .{ .x = -16.0, .y = 2.5, .z = 0.0 },
-            .size = .{ .x = 1.0, .y = 5.0, .z = 32.0 },
+            .position = .{ .x = -10.0, .y = 0, .z = 0.0 },
+            .size = .{ .x = 1.0, .y = 2.0, .z = 4.0 },
             .color = raylib.BLUE,
-            .velocity = .{ .x = 0.01, .y = 0, .z = 0 },
+            .velocity = .{ .x = 0.0, .y = 0, .z = 0 },
         },
         .{
-            .position = .{ .x = 16.0, .y = 2.5, .z = 0.0 },
-            .size = .{ .x = 1.0, .y = 5.0, .z = 32.0 },
+            .position = .{ .x = 10.0, .y = 0, .z = 0.0 },
+            .size = .{ .x = 1.0, .y = 2.0, .z = 4.0 },
             .color = raylib.LIME,
             .velocity = .{ .x = 0, .y = 0, .z = 0 },
         },
         .{
-            .position = .{ .x = 0, .y = 2.5, .z = 16.0 },
-            .size = .{ .x = 32.0, .y = 5.0, .z = 1.0 },
+            .position = .{ .x = 0, .y = 0, .z = 10.0 },
+            .size = .{ .x = 4.0, .y = 2.0, .z = 1.0 },
             .color = raylib.GOLD,
             .velocity = .{ .x = 0, .y = 0, .z = 0 },
         },
@@ -73,7 +73,7 @@ pub fn main() !void {
 
         raylib.BeginDrawing();
         {
-            raylib.ClearBackground(raylib.RAYWHITE);
+            raylib.ClearBackground(raylib.BLACK);
 
             raylib.BeginMode3D(camera);
             {
@@ -83,6 +83,8 @@ pub fn main() !void {
                     const scale = raylib.Vector3{ .x = 1, .y = 1, .z = 1 };
                     raylib.DrawModelEx(model, c.position, rotationAxis, rotationAngle, scale, c.color);
                 }
+
+                // raylib.DrawGrid(20, 1);
             }
             raylib.EndMode3D();
 
