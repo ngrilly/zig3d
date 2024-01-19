@@ -4,6 +4,14 @@ const raylib = @cImport({
     @cInclude("raymath.h");
 });
 
+// TODO: I manually declare these raylib functions because I can't include rcamera.h. Find a better way. And namespace this in raylib.
+pub extern fn CameraYaw(camera: *raylib.Camera, angle: f32, rotateAroundTarget: bool) void;
+pub extern fn CameraPitch(camera: *raylib.Camera, angle: f32, lockView: bool, rotateAroundTarget: bool, rotateUp: bool) void;
+pub extern fn CameraMoveForward(camera: *raylib.Camera, distance: f32, moveInWorldPlane: bool) void;
+
+const minSpeed = -10;
+const maxSpeed = 100;
+
 const Cube = struct {
     position: raylib.Vector3,
     size: raylib.Vector3,
@@ -12,11 +20,11 @@ const Cube = struct {
 };
 
 pub fn main() !void {
-    const screenWidth = 800;
-    const screenHeight = 450;
+    const initScreenWidth = 800;
+    const initScreenHeight = 450;
 
     raylib.SetConfigFlags(raylib.FLAG_WINDOW_RESIZABLE);
-    raylib.InitWindow(screenWidth, screenHeight, "raylib [core] example - basic window");
+    raylib.InitWindow(initScreenWidth, initScreenHeight, "raylib [core] example - basic window");
 
     // TODO: Is it necessary, and why?
     raylib.SetTargetFPS(60);
@@ -29,7 +37,7 @@ pub fn main() !void {
         .projection = raylib.CAMERA_PERSPECTIVE,
     };
 
-    // var speed: f32 = 0;
+    var speed: f32 = 0;
 
     // TODO: add orientation and angularVelocity (equals rotation axis + rotation speed)
     var cubes = [_]Cube{
@@ -65,8 +73,27 @@ pub fn main() !void {
     };
 
     while (!raylib.WindowShouldClose()) {
+        // Process inputs
+        // TODO: support non-QWERTY keyboard?
+        if (raylib.IsKeyDown(raylib.KEY_W) and speed < maxSpeed)
+            speed += 0.01;
+        if (raylib.IsKeyDown(raylib.KEY_S) and speed > minSpeed)
+            speed -= 0.01;
+        const CAMERA_MOUSE_MOVE_SENSITIVITY = 0.05;
+        // const mousePositionDelta = raylib.GetMouseDelta();
+        const mousePosition = raylib.GetMousePosition();
+        const screenWidth: f32 = @floatFromInt(raylib.GetScreenWidth());
+        const screenHeight: f32 = @floatFromInt(raylib.GetScreenHeight());
+        const mousePositionXPercent = (screenWidth - mousePosition.x) / screenWidth;
+        const mousePositionYPercent = (screenHeight - mousePosition.y) / screenHeight;
+        CameraYaw(&camera, (mousePositionXPercent - 0.5) * CAMERA_MOUSE_MOVE_SENSITIVITY, false);
+        CameraPitch(&camera, (mousePositionYPercent - 0.5) * CAMERA_MOUSE_MOVE_SENSITIVITY, true, false, false);
+        // CameraYaw(&camera, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY, false);
+        // CameraPitch(&camera, -mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY, true, false, false);
+        // raylib.UpdateCamera(&camera, raylib.CAMERA_FIRST_PERSON);
+        CameraMoveForward(&camera, speed, false);
+
         // Update
-        raylib.UpdateCamera(&camera, raylib.CAMERA_FIRST_PERSON);
         for (&cubes) |*c| {
             c.position = raylib.Vector3Add(c.position, c.velocity);
         }
@@ -84,11 +111,11 @@ pub fn main() !void {
                     raylib.DrawModelEx(model, c.position, rotationAxis, rotationAngle, scale, c.color);
                 }
 
-                // raylib.DrawGrid(20, 1);
+                raylib.DrawGrid(20, 1);
             }
             raylib.EndMode3D();
 
-            raylib.DrawText("Congrats! You created your first window!", 190, 200, 20, raylib.LIGHTGRAY);
+            raylib.DrawText(raylib.TextFormat("Speed: %f", speed), raylib.GetScreenWidth() - 220, raylib.GetScreenHeight() - 30, 20, raylib.LIME);
         }
         raylib.EndDrawing();
     }
