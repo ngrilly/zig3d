@@ -116,6 +116,7 @@ pub fn main() !void {
             raylib.EndMode3D();
 
             drawCrosshair();
+            raylib.DrawFPS(10, 10);
             raylib.DrawText(raylib.TextFormat("Speed: %f", speed), raylib.GetScreenWidth() - 220, raylib.GetScreenHeight() - 30, 20, raylib.LIME);
         }
         raylib.EndDrawing();
