@@ -26,7 +26,6 @@ pub fn main() !void {
     raylib.SetConfigFlags(raylib.FLAG_WINDOW_RESIZABLE);
     raylib.InitWindow(initScreenWidth, initScreenHeight, "raylib [core] example - basic window");
 
-    // TODO: Is it necessary, and why?
     raylib.SetTargetFPS(60);
     raylib.DisableCursor();
 
