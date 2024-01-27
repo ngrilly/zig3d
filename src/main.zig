@@ -39,6 +39,7 @@ pub fn main() !void {
     };
 
     var speed: f32 = 0;
+    var speedStop = false; // TODO: find a better name
 
     // TODO: add orientation and angularVelocity (equals rotation axis + rotation speed)
     var cubes = [_]Cube{
@@ -80,8 +81,15 @@ pub fn main() !void {
         // TODO: support non-QWERTY keyboard?
         if (raylib.IsKeyDown(raylib.KEY_W) and speed < maxSpeed)
             speed += speedSensitivity * frameTime;
-        if (raylib.IsKeyDown(raylib.KEY_S) and speed > minSpeed)
+        if (raylib.IsKeyDown(raylib.KEY_S) and speed > minSpeed and !speedStop) {
+            const previousSpeed = speed;
             speed -= speedSensitivity * frameTime;
+            // Player needs to release the key and press it again to reverse engine
+            if (previousSpeed > 0 and speed <= 0)
+                speedStop = true;
+        }
+        if (raylib.IsKeyReleased(raylib.KEY_S))
+            speedStop = false;
 
         const CAMERA_MOUSE_MOVE_SENSITIVITY = 0.005;
         const mousePositionDelta = raylib.GetMouseDelta();
