@@ -9,8 +9,9 @@ pub extern fn CameraYaw(camera: *raylib.Camera, angle: f32, rotateAroundTarget: 
 pub extern fn CameraPitch(camera: *raylib.Camera, angle: f32, lockView: bool, rotateAroundTarget: bool, rotateUp: bool) void;
 pub extern fn CameraMoveForward(camera: *raylib.Camera, distance: f32, moveInWorldPlane: bool) void;
 
-const minSpeed = -10;
-const maxSpeed = 100;
+const minSpeed = -1;
+const maxSpeed = 1;
+const speedSensitivity = 0.1;
 
 const Cube = struct {
     position: raylib.Vector3,
@@ -73,12 +74,15 @@ pub fn main() !void {
     };
 
     while (!raylib.WindowShouldClose()) {
+        const frameTime = raylib.GetFrameTime();
+
         // Process inputs
         // TODO: support non-QWERTY keyboard?
         if (raylib.IsKeyDown(raylib.KEY_W) and speed < maxSpeed)
-            speed += 0.01;
+            speed += speedSensitivity * frameTime;
         if (raylib.IsKeyDown(raylib.KEY_S) and speed > minSpeed)
-            speed -= 0.01;
+            speed -= speedSensitivity * frameTime;
+
         const CAMERA_MOUSE_MOVE_SENSITIVITY = 0.005;
         const mousePositionDelta = raylib.GetMouseDelta();
         // const mousePosition = raylib.GetMousePosition();
