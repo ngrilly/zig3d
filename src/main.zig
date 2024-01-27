@@ -28,6 +28,7 @@ pub fn main() !void {
 
     // TODO: Is it necessary, and why?
     raylib.SetTargetFPS(60);
+    raylib.DisableCursor();
 
     var camera = raylib.Camera{
         .position = raylib.Vector3{ .x = 0, .y = 2, .z = -15 },
@@ -79,17 +80,17 @@ pub fn main() !void {
             speed += 0.01;
         if (raylib.IsKeyDown(raylib.KEY_S) and speed > minSpeed)
             speed -= 0.01;
-        const CAMERA_MOUSE_MOVE_SENSITIVITY = 0.05;
-        // const mousePositionDelta = raylib.GetMouseDelta();
-        const mousePosition = raylib.GetMousePosition();
-        const screenWidth: f32 = @floatFromInt(raylib.GetScreenWidth());
-        const screenHeight: f32 = @floatFromInt(raylib.GetScreenHeight());
-        const mousePositionXPercent = (screenWidth - mousePosition.x) / screenWidth;
-        const mousePositionYPercent = (screenHeight - mousePosition.y) / screenHeight;
-        CameraYaw(&camera, (mousePositionXPercent - 0.5) * CAMERA_MOUSE_MOVE_SENSITIVITY, false);
-        CameraPitch(&camera, (mousePositionYPercent - 0.5) * CAMERA_MOUSE_MOVE_SENSITIVITY, true, false, false);
-        // CameraYaw(&camera, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY, false);
-        // CameraPitch(&camera, -mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY, true, false, false);
+        const CAMERA_MOUSE_MOVE_SENSITIVITY = 0.005;
+        const mousePositionDelta = raylib.GetMouseDelta();
+        // const mousePosition = raylib.GetMousePosition();
+        // const screenWidth: f32 = @floatFromInt(raylib.GetScreenWidth());
+        // const screenHeight: f32 = @floatFromInt(raylib.GetScreenHeight());
+        // const mousePositionXPercent = (screenWidth - mousePosition.x) / screenWidth;
+        // const mousePositionYPercent = (screenHeight - mousePosition.y) / screenHeight;
+        // CameraYaw(&camera, (mousePositionXPercent - 0.5) * CAMERA_MOUSE_MOVE_SENSITIVITY, false);
+        // CameraPitch(&camera, (mousePositionYPercent - 0.5) * CAMERA_MOUSE_MOVE_SENSITIVITY, true, false, false);
+        CameraYaw(&camera, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY, false);
+        CameraPitch(&camera, -mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY, true, false, false);
         // raylib.UpdateCamera(&camera, raylib.CAMERA_FIRST_PERSON);
         CameraMoveForward(&camera, speed, false);
 
@@ -133,4 +134,7 @@ fn drawCrosshair() void {
     const screenCenterY = @divTrunc(screenHeight, 2);
     raylib.DrawLine(screenCenterX, screenCenterY + crosshairSize, screenCenterX, screenCenterY - crosshairSize, raylib.WHITE);
     raylib.DrawLine(screenCenterX + crosshairSize, screenCenterY, screenCenterX - crosshairSize, screenCenterY, raylib.WHITE);
+
+    // const mousePosition = raylib.GetMousePosition();
+    // raylib.DrawCircleLinesV(mousePosition, 10, raylib.WHITE);
 }

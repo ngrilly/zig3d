@@ -48,6 +48,8 @@ VBO: Vertex Buffer Object
 - Skybox
     - raylib has a skybox example
     - https://en.wikipedia.org/wiki/Cube_mapping
+    - https://scaryreasoner.wordpress.com/2013/09/10/opengl-skybox-in-space-nerds-in-space/
+    - https://ogldev.org/www/tutorial25/tutorial25.html
 - Speed
 - Sound (engine, collisions, etc.)
 - Collisions
