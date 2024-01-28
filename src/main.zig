@@ -2,6 +2,7 @@ const std = @import("std");
 const raylib = @cImport({
     @cInclude("raylib.h");
     @cInclude("raymath.h");
+    @cInclude("rlgl.h");
 });
 
 // TODO: I manually declare these raylib functions because I can't include rcamera.h. Find a better way. And namespace this in raylib.
@@ -37,6 +38,23 @@ pub fn main() !void {
         .fovy = 60,
         .projection = raylib.CAMERA_PERSPECTIVE,
     };
+
+    // Load skybox model
+    const cube = raylib.GenMeshCube(1.0, 1.0, 1.0);
+    const skybox = raylib.LoadModelFromMesh(cube);
+    defer raylib.UnloadModel(skybox);
+
+    skybox.materials[0].shader = raylib.LoadShaderFromMemory(@embedFile("shaders/glsl330/skybox.vs"), @embedFile("shaders/glsl330/skybox.fs"));
+    defer raylib.UnloadShader(skybox.materials[0].shader);
+
+    raylib.SetShaderValue(skybox.materials[0].shader, raylib.GetShaderLocation(skybox.materials[0].shader, "environmentMap"), &raylib.MATERIAL_MAP_CUBEMAP, raylib.SHADER_UNIFORM_INT);
+    raylib.SetShaderValue(skybox.materials[0].shader, raylib.GetShaderLocation(skybox.materials[0].shader, "doGamma"), &[1]c_int{0}, raylib.SHADER_UNIFORM_INT);
+    raylib.SetShaderValue(skybox.materials[0].shader, raylib.GetShaderLocation(skybox.materials[0].shader, "vflipped"), &[1]c_int{0}, raylib.SHADER_UNIFORM_INT);
+
+    const img = raylib.LoadImage("space-skybox-texture-mapping-cube-mapping-night-sky-24df7747449631f3f2a45fc630ae6ad0.png");
+    skybox.materials[0].maps[raylib.MATERIAL_MAP_CUBEMAP].texture = raylib.LoadTextureCubemap(img, raylib.CUBEMAP_LAYOUT_AUTO_DETECT);
+    raylib.UnloadImage(img);
+    defer raylib.UnloadTexture(skybox.materials[0].maps[raylib.MATERIAL_MAP_CUBEMAP].texture);
 
     var speed: f32 = 0;
     var speedStop = false; // TODO: find a better name
@@ -116,6 +134,13 @@ pub fn main() !void {
 
             raylib.BeginMode3D(camera);
             {
+                // Draw skybox. We are inside the cube, we need to disable backface culling!
+                raylib.rlDisableBackfaceCulling();
+                raylib.rlDisableDepthMask();
+                raylib.DrawModel(skybox, raylib.Vector3{ .x = 0, .y = 0, .z = 0 }, 1.0, raylib.WHITE);
+                raylib.rlEnableDepthMask();
+                raylib.rlEnableBackfaceCulling();
+
                 for (cubes, models) |c, model| {
                     const rotationAxis = raylib.Vector3{ .x = 0.0, .y = 1.0, .z = 0.0 };
                     const rotationAngle: f32 = @floatCast(30.0 * raylib.GetTime());
