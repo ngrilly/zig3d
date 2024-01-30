@@ -45,6 +45,8 @@ VBO: Vertex Buffer Object
 
 # Todo
 
+- Refactor the code
+- Move resources to a dedicated directory
 - Skybox
     - raylib has a skybox example
     - https://en.wikipedia.org/wiki/Cube_mapping
@@ -53,3 +55,7 @@ VBO: Vertex Buffer Object
 - Speed
 - Sound (engine, collisions, etc.)
 - Collisions
+
+# Credits
+
+- Engine sound: https://freesound.org/people/Nexotron/sounds/371282/

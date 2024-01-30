@@ -31,6 +31,13 @@ pub fn main() !void {
 
     raylib.SetTargetFPS(60);
 
+    raylib.InitAudioDevice();
+    defer raylib.CloseAudioDevice();
+    // We use a music stream because it offers looping, unlike a sound.
+    const engineNoise = raylib.LoadMusicStream("371282__nexotron__spaceship-engine-just-noise-normalized.wav");
+    defer raylib.UnloadMusicStream(engineNoise);
+    raylib.PlayMusicStream(engineNoise);
+
     var camera = raylib.Camera{
         .position = raylib.Vector3{ .x = 0, .y = 2, .z = -15 },
         .target = raylib.Vector3{ .x = 0, .y = 0, .z = 0 },
@@ -133,6 +140,10 @@ pub fn main() !void {
         for (&cubes) |*c| {
             c.position = raylib.Vector3Add(c.position, c.velocity);
         }
+
+        const engineVolume = if (speed >= 0) speed / maxSpeed else -speed / -minSpeed;
+        raylib.SetMusicVolume(engineNoise, engineVolume);
+        raylib.UpdateMusicStream(engineNoise);
 
         raylib.BeginDrawing();
         {
