@@ -14,16 +14,22 @@ const minSpeed = -1;
 const maxSpeed = 1;
 const speedSensitivity = 0.1;
 
+// TODO: add angularVelocity (to cover both rotation axis + rotation speed)
 const Cube = struct {
     position: raylib.Vector3,
     size: raylib.Vector3,
     color: raylib.Color,
     velocity: raylib.Vector3,
+    // TODO: rename rotationAxis to orientation?
+    rotationAxis: raylib.Vector3 = .{ .x = 0, .y = 0, .z = 0 },
 };
 
 pub fn main() !void {
     const initScreenWidth = 800;
     const initScreenHeight = 450;
+
+    var prng = std.rand.DefaultPrng.init(0);
+    const random = prng.random();
 
     raylib.SetConfigFlags(raylib.FLAG_WINDOW_RESIZABLE);
     raylib.InitWindow(initScreenWidth, initScreenHeight, "raylib [core] example - basic window");
@@ -66,7 +72,6 @@ pub fn main() !void {
     var speed: f32 = 0;
     var speedStop = false; // TODO: find a better name
 
-    // TODO: add orientation and angularVelocity (equals rotation axis + rotation speed)
     var cubes = [_]Cube{
         .{
             .position = .{ .x = -10.0, .y = 0, .z = 0.0 },
@@ -87,6 +92,10 @@ pub fn main() !void {
             .velocity = .{ .x = 0, .y = 0, .z = 0 },
         },
     };
+
+    for (&cubes) |*c| {
+        c.rotationAxis = .{ .x = random.float(f32), .y = random.float(f32), .z = random.float(f32) };
+    }
 
     // TODO: is there a way to avoid undefined?
     var models: [cubes.len]raylib.Model = undefined;
@@ -161,10 +170,9 @@ pub fn main() !void {
                 raylib.rlEnableBackfaceCulling();
 
                 for (cubes, models) |c, model| {
-                    const rotationAxis = raylib.Vector3{ .x = 0.0, .y = 1.0, .z = 0.0 };
                     const rotationAngle: f32 = @floatCast(30.0 * raylib.GetTime());
                     const scale = raylib.Vector3{ .x = 1, .y = 1, .z = 1 };
-                    raylib.DrawModelEx(model, c.position, rotationAxis, rotationAngle, scale, c.color);
+                    raylib.DrawModelEx(model, c.position, c.rotationAxis, rotationAngle, scale, c.color);
                 }
 
                 raylib.DrawGrid(20, 1);

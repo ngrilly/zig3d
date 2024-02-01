@@ -45,6 +45,7 @@ VBO: Vertex Buffer Object
 
 # Todo
 
+- Lighting
 - Refactor the code
 - Move resources to a dedicated directory
 - Skybox
