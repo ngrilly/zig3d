@@ -139,7 +139,7 @@ pub fn main() !void {
             c.position = raylib.Vector3Add(c.position, c.velocity);
         }
 
-        const engineVolume = if (speed >= 0) speed / maxSpeed else -speed / -minSpeed;
+        const engineVolume = @abs(speed) / maxSpeed;
         raylib.SetMusicVolume(engineNoise, engineVolume);
         raylib.UpdateMusicStream(engineNoise);
 
