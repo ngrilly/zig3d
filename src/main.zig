@@ -114,8 +114,10 @@ pub fn main() !void {
             const previousSpeed = speed;
             speed -= speedSensitivity * frameTime;
             // Player needs to release the key and press it again to reverse engine
-            if (previousSpeed > 0 and speed <= 0)
+            if (previousSpeed > 0 and speed <= 0) {
+                speed = 0;
                 speedStop = true;
+            }
         }
         if (raylib.IsKeyReleased(raylib.KEY_S))
             speedStop = false;
