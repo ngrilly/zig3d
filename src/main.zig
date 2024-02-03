@@ -84,11 +84,15 @@ pub fn main() !void {
         c.rotationAxis = .{ .x = random.float(f32), .y = random.float(f32), .z = random.float(f32) };
     }
 
+    const cubeShader = raylib.LoadShaderFromMemory(@embedFile("shaders/cube.vs"), @embedFile("shaders/cube.fs"));
+    defer raylib.UnloadShader(cubeShader);
+
     // TODO: is there a way to avoid undefined?
     var models: [cubes.len]raylib.Model = undefined;
     for (cubes, &models) |c, *m| {
         const mesh = raylib.GenMeshCube(c.size.x, c.size.y, c.size.z);
         m.* = raylib.LoadModelFromMesh(mesh);
+        m.materials[0].shader = cubeShader;
     }
 
     defer for (models) |m| {
