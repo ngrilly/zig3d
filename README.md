@@ -47,7 +47,6 @@ VBO: Vertex Buffer Object
 
 - Lighting
 - Refactor the code
-- Move resources to a dedicated directory
 - Speed
 - Sound (engine, collisions, etc.)
 - Collisions

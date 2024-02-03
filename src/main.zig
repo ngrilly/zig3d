@@ -40,7 +40,7 @@ pub fn main() !void {
     raylib.InitAudioDevice();
     defer raylib.CloseAudioDevice();
     // We use a music stream because it offers looping, unlike a sound.
-    const engineNoise = raylib.LoadMusicStream("371282__nexotron__spaceship-engine-just-noise-normalized.wav");
+    const engineNoise = raylib.LoadMusicStream("resources/371282__nexotron__spaceship-engine-just-noise-normalized.wav");
     defer raylib.UnloadMusicStream(engineNoise);
     raylib.PlayMusicStream(engineNoise);
 
@@ -204,7 +204,7 @@ const Skybox = struct {
         raylib.SetShaderValue(skybox.materials[0].shader, raylib.GetShaderLocation(skybox.materials[0].shader, "doGamma"), &[1]c_int{0}, raylib.SHADER_UNIFORM_INT);
         raylib.SetShaderValue(skybox.materials[0].shader, raylib.GetShaderLocation(skybox.materials[0].shader, "vflipped"), &[1]c_int{0}, raylib.SHADER_UNIFORM_INT);
 
-        const img = raylib.LoadImage("space-skybox-texture-mapping-cube-mapping-night-sky-24df7747449631f3f2a45fc630ae6ad0.png");
+        const img = raylib.LoadImage("resources/space-skybox-texture-mapping-cube-mapping-night-sky-24df7747449631f3f2a45fc630ae6ad0.png");
         skybox.materials[0].maps[raylib.MATERIAL_MAP_CUBEMAP].texture = raylib.LoadTextureCubemap(img, raylib.CUBEMAP_LAYOUT_AUTO_DETECT);
         raylib.UnloadImage(img);
 
