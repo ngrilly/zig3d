@@ -7,7 +7,7 @@
 
 const Skybox = @This();
 
-const raylib = @import("raylib.zig").c;
+const raylib = @import("raylib.zig");
 
 skybox: raylib.Model,
 

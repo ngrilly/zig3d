@@ -1,5 +1,5 @@
 const std = @import("std");
-const raylib = @import("raylib.zig").c;
+const raylib = @import("raylib.zig");
 const light = @import("light.zig");
 const Skybox = @import("Skybox.zig");
 

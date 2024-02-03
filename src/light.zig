@@ -1,7 +1,7 @@
 //! Based on raylib.lights
 
 const std = @import("std");
-const raylib = @import("raylib.zig").c;
+const raylib = @import("raylib.zig");
 
 /// Max dynamic lights supported by shader
 pub const MAX_LIGHTS = 4;
