@@ -1,9 +1,6 @@
 const std = @import("std");
-const raylib = @cImport({
-    @cInclude("raylib.h");
-    @cInclude("raymath.h");
-    @cInclude("rlgl.h");
-});
+const raylib = @import("raylib.zig").c;
+const light = @import("light.zig");
 
 // TODO: I manually declare these raylib functions because I can't include rcamera.h. Find a better way. And namespace this in raylib.
 pub extern fn CameraYaw(camera: *raylib.Camera, angle: f32, rotateAroundTarget: bool) void;
@@ -86,6 +83,19 @@ pub fn main() !void {
 
     const cubeShader = raylib.LoadShaderFromMemory(@embedFile("shaders/cube.vs"), @embedFile("shaders/cube.fs"));
     defer raylib.UnloadShader(cubeShader);
+    cubeShader.locs[raylib.SHADER_LOC_VECTOR_VIEW] = raylib.GetShaderLocation(cubeShader, "viewPos");
+
+    // Set ambient light level (some basic lighting)
+    const ambientLoc = raylib.GetShaderLocation(cubeShader, "ambient");
+    raylib.SetShaderValue(cubeShader, ambientLoc, &[4]f32{ 0.1, 0.1, 0.1, 1.0 }, raylib.SHADER_UNIFORM_VEC4);
+
+    // Create lights
+    const lights = [_]light.Light{
+        light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = -2, .y = 1, .z = -2 }, raylib.Vector3Zero(), raylib.YELLOW, cubeShader),
+        light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = 2, .y = 1, .z = 2 }, raylib.Vector3Zero(), raylib.RED, cubeShader),
+        light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = -2, .y = 1, .z = 2 }, raylib.Vector3Zero(), raylib.GREEN, cubeShader),
+        light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = 2, .y = 1, .z = -2 }, raylib.Vector3Zero(), raylib.BLUE, cubeShader),
+    };
 
     // TODO: is there a way to avoid undefined?
     var models: [cubes.len]raylib.Model = undefined;
@@ -138,6 +148,10 @@ pub fn main() !void {
             CameraMoveForward(&camera, speed, false);
         }
 
+        // Update the shader with the camera view vector (points towards { 0.0, 0.0, 0.0 })
+        const cameraPos = [_]f32{ camera.position.x, camera.position.y, camera.position.z };
+        raylib.SetShaderValue(cubeShader, cubeShader.locs[raylib.SHADER_LOC_VECTOR_VIEW], &cameraPos, raylib.SHADER_UNIFORM_VEC3);
+
         // Update
         for (&cubes) |*c| {
             c.position = raylib.Vector3Add(c.position, c.velocity);
@@ -159,6 +173,14 @@ pub fn main() !void {
                     const rotationAngle: f32 = @floatCast(30.0 * raylib.GetTime());
                     const scale = raylib.Vector3{ .x = 1, .y = 1, .z = 1 };
                     raylib.DrawModelEx(model, c.position, c.rotationAxis, rotationAngle, scale, c.color);
+                }
+
+                // Draw spheres to show where the lights are
+                for (lights) |l| {
+                    if (l.enabled)
+                        raylib.DrawSphereEx(l.position, 0.2, 8, 8, l.color)
+                    else
+                        raylib.DrawSphereWires(l.position, 0.2, 8, 8, raylib.ColorAlpha(l.color, 0.3));
                 }
 
                 raylib.DrawGrid(20, 1);
