@@ -11,7 +11,6 @@ const minSpeed = -1;
 const maxSpeed = 1;
 const speedSensitivity = 0.1;
 
-// TODO: add angularVelocity (to cover both rotation axis + rotation speed)
 const Cube = struct {
     position: raylib.Vector3,
     size: raylib.Vector3,
@@ -19,6 +18,8 @@ const Cube = struct {
     velocity: raylib.Vector3,
     // TODO: rename rotationAxis to orientation?
     rotationAxis: raylib.Vector3 = .{ .x = 0, .y = 0, .z = 0 },
+    // TODO: rename rotationSpeed to angularVelocity?
+    rotationSpeed: f32,
 };
 
 pub fn main() !void {
@@ -59,6 +60,7 @@ pub fn main() !void {
     const cubeCount = 1000;
     const cubeFieldDiameter = 500;
     const cubeFieldDepth = 50;
+    const cubeMaxRotationSpeed = 30;
 
     var cubes: [cubeCount]Cube = undefined;
     for (&cubes) |*c| {
@@ -74,6 +76,7 @@ pub fn main() !void {
         };
         c.velocity = .{ .x = 0.0, .y = 0, .z = 0 };
         c.rotationAxis = .{ .x = random.float(f32), .y = random.float(f32), .z = random.float(f32) };
+        c.rotationSpeed = (2 * random.float(f32) - 1) * cubeMaxRotationSpeed;
         c.color = raylib.BLUE;
         // c.color = raylib.LIME;
         // c.color = raylib.GOLD;
@@ -168,7 +171,7 @@ pub fn main() !void {
                 skybox.draw();
 
                 for (cubes, models) |c, model| {
-                    const rotationAngle: f32 = @floatCast(30.0 * raylib.GetTime());
+                    const rotationAngle: f32 = @floatCast(c.rotationSpeed * raylib.GetTime());
                     const scale = raylib.Vector3{ .x = 1, .y = 1, .z = 1 };
                     raylib.DrawModelEx(model, c.position, c.rotationAxis, rotationAngle, scale, c.color);
                 }
