@@ -65,8 +65,8 @@ pub fn main() !void {
     var cubes: [cubeCount]Cube = undefined;
     for (&cubes) |*c| {
         c.position = .{
-            .x = random.float(f32) * cubeFieldDiameter - cubeFieldDiameter / 2,
-            .y = random.float(f32) * cubeFieldDepth - cubeFieldDepth / 2,
+            .x = (random.float(f32) - 0.5) * cubeFieldDiameter,
+            .y = (random.float(f32) - 0.5) * cubeFieldDepth,
             .z = random.float(f32) * cubeFieldDiameter,
         };
         c.size = .{
