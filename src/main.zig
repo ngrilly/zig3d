@@ -56,29 +56,27 @@ pub fn main() !void {
     var speed: f32 = 0;
     var speedStop = false; // TODO: find a better name
 
-    var cubes = [_]Cube{
-        .{
-            .position = .{ .x = -10.0, .y = 0, .z = 0.0 },
-            .size = .{ .x = 1.0, .y = 2.0, .z = 4.0 },
-            .color = raylib.BLUE,
-            .velocity = .{ .x = 0.0, .y = 0, .z = 0 },
-        },
-        .{
-            .position = .{ .x = 10.0, .y = 0, .z = 0.0 },
-            .size = .{ .x = 1.0, .y = 2.0, .z = 4.0 },
-            .color = raylib.LIME,
-            .velocity = .{ .x = 0, .y = 0, .z = 0 },
-        },
-        .{
-            .position = .{ .x = 0, .y = 0, .z = 10.0 },
-            .size = .{ .x = 4.0, .y = 2.0, .z = 1.0 },
-            .color = raylib.GOLD,
-            .velocity = .{ .x = 0, .y = 0, .z = 0 },
-        },
-    };
+    const cubeCount = 1000;
+    const cubeFieldDiameter = 500;
+    const cubeFieldDepth = 50;
 
+    var cubes: [cubeCount]Cube = undefined;
     for (&cubes) |*c| {
+        c.position = .{
+            .x = random.float(f32) * cubeFieldDiameter - cubeFieldDiameter / 2,
+            .y = random.float(f32) * cubeFieldDepth - cubeFieldDepth / 2,
+            .z = random.float(f32) * cubeFieldDiameter,
+        };
+        c.size = .{
+            .x = 1 + random.float(f32) * 3,
+            .y = 1 + random.float(f32) * 3,
+            .z = 1 + random.float(f32) * 3,
+        };
+        c.velocity = .{ .x = 0.0, .y = 0, .z = 0 };
         c.rotationAxis = .{ .x = random.float(f32), .y = random.float(f32), .z = random.float(f32) };
+        c.color = raylib.BLUE;
+        // c.color = raylib.LIME;
+        // c.color = raylib.GOLD;
     }
 
     const cubeShader = raylib.LoadShaderFromMemory(@embedFile("shaders/cube.vs"), @embedFile("shaders/cube.fs"));
