@@ -152,20 +152,22 @@ pub fn main() !void {
             CameraMoveForward(&camera, speed, false);
         }
 
-        // Update the shader with the camera view vector (points towards { 0.0, 0.0, 0.0 })
-        const cameraPos = [_]f32{ camera.position.x, camera.position.y, camera.position.z };
-        raylib.SetShaderValue(cubeShader, cubeShader.locs[raylib.SHADER_LOC_VECTOR_VIEW], &cameraPos, raylib.SHADER_UNIFORM_VEC3);
-
-        // Update
+        // Update physics
         for (&cubes) |*c| {
             c.position = raylib.Vector3Add(c.position, c.velocity);
             c.rotationAngle = @floatCast(c.rotationSpeed * raylib.GetTime());
         }
 
+        // Update audio
         const engineVolume = @abs(speed) / maxSpeed;
         raylib.SetMusicVolume(engineNoise, engineVolume);
         raylib.UpdateMusicStream(engineNoise);
 
+        // Update the shader with the camera view vector (points towards { 0.0, 0.0, 0.0 })
+        const cameraPos = [_]f32{ camera.position.x, camera.position.y, camera.position.z };
+        raylib.SetShaderValue(cubeShader, cubeShader.locs[raylib.SHADER_LOC_VECTOR_VIEW], &cameraPos, raylib.SHADER_UNIFORM_VEC3);
+
+        // Draw
         raylib.BeginDrawing();
         {
             raylib.ClearBackground(raylib.BLACK);
