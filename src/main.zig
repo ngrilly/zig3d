@@ -21,6 +21,7 @@ const Cube = struct {
     rotationAxis: raylib.Vector3 = .{ .x = 0, .y = 0, .z = 0 },
     // TODO: rename rotationSpeed to angularVelocity?
     rotationSpeed: f32,
+    rotationAngle: f32,
 };
 
 pub fn main() !void {
@@ -78,6 +79,7 @@ pub fn main() !void {
         c.velocity = .{ .x = 0.0, .y = 0, .z = 0 };
         c.rotationAxis = .{ .x = random.float(f32), .y = random.float(f32), .z = random.float(f32) };
         c.rotationSpeed = (2 * random.float(f32) - 1) * cubeMaxRotationSpeed;
+        c.rotationAngle = 0;
         c.color = raylib.BLUE;
         // c.color = raylib.LIME;
         // c.color = raylib.GOLD;
@@ -157,6 +159,7 @@ pub fn main() !void {
         // Update
         for (&cubes) |*c| {
             c.position = raylib.Vector3Add(c.position, c.velocity);
+            c.rotationAngle = @floatCast(c.rotationSpeed * raylib.GetTime());
         }
 
         const engineVolume = @abs(speed) / maxSpeed;
@@ -172,9 +175,8 @@ pub fn main() !void {
                 skybox.draw();
 
                 for (cubes, models) |c, model| {
-                    const rotationAngle: f32 = @floatCast(c.rotationSpeed * raylib.GetTime());
                     const scale = raylib.Vector3{ .x = 1, .y = 1, .z = 1 };
-                    raylib.DrawModelEx(model, c.position, c.rotationAxis, rotationAngle, scale, c.color);
+                    raylib.DrawModelEx(model, c.position, c.rotationAxis, c.rotationAngle, scale, c.color);
                 }
 
                 // Draw spheres to show where the lights are
