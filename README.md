@@ -45,9 +45,10 @@ VBO: Vertex Buffer Object
 
 # Todo
 
-- Lighting
-- Refactor the code
-- Speed
+- Fly in all directions (currently limited by the camera)
+- Fly using newtonian physics
+- Check lighting is right
+- Structure the code
 - Sound (engine, collisions, etc.)
 - Collisions
 
