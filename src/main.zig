@@ -59,31 +59,7 @@ pub fn main() !void {
     var speed: f32 = 0;
     var speedStop = false; // TODO: find a better name
 
-    const cubeCount = 1000;
-    const cubeFieldDiameter = 500;
-    const cubeFieldDepth = 50;
-    const cubeMaxRotationSpeed = 30;
-
-    var cubes: [cubeCount]Cube = undefined;
-    for (&cubes) |*c| {
-        c.position = .{
-            .x = (random.float(f32) - 0.5) * cubeFieldDiameter,
-            .y = (random.float(f32) - 0.5) * cubeFieldDepth,
-            .z = random.float(f32) * cubeFieldDiameter,
-        };
-        c.size = .{
-            .x = 1 + random.float(f32) * 3,
-            .y = 1 + random.float(f32) * 3,
-            .z = 1 + random.float(f32) * 3,
-        };
-        c.velocity = .{ .x = 0.0, .y = 0, .z = 0 };
-        c.rotationAxis = .{ .x = random.float(f32), .y = random.float(f32), .z = random.float(f32) };
-        c.rotationSpeed = (2 * random.float(f32) - 1) * cubeMaxRotationSpeed;
-        c.rotationAngle = 0;
-        c.color = raylib.BLUE;
-        // c.color = raylib.LIME;
-        // c.color = raylib.GOLD;
-    }
+    var cubes = createCubes(random);
 
     const cubeShader = raylib.LoadShaderFromMemory(@embedFile("shaders/cube.vs"), @embedFile("shaders/cube.fs"));
     defer raylib.UnloadShader(cubeShader);
@@ -201,6 +177,40 @@ pub fn main() !void {
     }
 
     raylib.CloseWindow();
+}
+
+const cubeCount = 1000;
+const cubeFieldDiameter = 500;
+const cubeFieldDepth = 50;
+const cubeMaxRotationSpeed = 30;
+
+/// Creates a field of random cubes.
+fn createCubes(random: std.rand.Random) [cubeCount]Cube {
+    // TODO: Verify that according to Zig Result Location Semantics the cubes are not copied.
+
+    var cubes: [cubeCount]Cube = undefined;
+
+    for (&cubes) |*c| {
+        c.position = .{
+            .x = (random.float(f32) - 0.5) * cubeFieldDiameter,
+            .y = (random.float(f32) - 0.5) * cubeFieldDepth,
+            .z = random.float(f32) * cubeFieldDiameter,
+        };
+        c.size = .{
+            .x = 1 + random.float(f32) * 3,
+            .y = 1 + random.float(f32) * 3,
+            .z = 1 + random.float(f32) * 3,
+        };
+        c.velocity = .{ .x = 0.0, .y = 0, .z = 0 };
+        c.rotationAxis = .{ .x = random.float(f32), .y = random.float(f32), .z = random.float(f32) };
+        c.rotationSpeed = (2 * random.float(f32) - 1) * cubeMaxRotationSpeed;
+        c.rotationAngle = 0;
+        c.color = raylib.BLUE;
+        // c.color = raylib.LIME;
+        // c.color = raylib.GOLD;
+    }
+
+    return cubes;
 }
 
 fn drawCrosshair() void {
