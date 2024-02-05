@@ -3,9 +3,10 @@ const raylib = @import("raylib.zig");
 const light = @import("light.zig");
 const Skybox = @import("Skybox.zig");
 
-const minSpeed = -1;
-const maxSpeed = 1;
-const speedSensitivity = 0.1;
+// Speeds in m/s
+const minSpeed = -50;
+const maxSpeed = 50;
+const speedSensitivity = 5;
 const strafeSpeed = 5;
 
 const Cube = struct {
@@ -128,7 +129,7 @@ pub fn main() !void {
             cameraYaw(&camera, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY);
             cameraPitch(&camera, -mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY, true, false);
             // raylib.UpdateCamera(&camera, raylib.CAMERA_FIRST_PERSON);
-            cameraMoveForward(&camera, speed);
+            cameraMoveForward(&camera, speed * frameTime);
         }
 
         // Update physics
@@ -174,7 +175,7 @@ pub fn main() !void {
 
             drawCrosshair();
             raylib.DrawFPS(10, 10);
-            raylib.DrawText(raylib.TextFormat("Speed: %f", speed), raylib.GetScreenWidth() - 220, raylib.GetScreenHeight() - 30, 20, raylib.LIME);
+            raylib.DrawText(raylib.TextFormat("Speed: %.1f m/s", speed), raylib.GetScreenWidth() - 220, raylib.GetScreenHeight() - 30, 20, raylib.LIME);
         }
         raylib.EndDrawing();
     }
