@@ -7,10 +7,12 @@ const Skybox = @import("Skybox.zig");
 pub extern fn CameraYaw(camera: *raylib.Camera, angle: f32, rotateAroundTarget: bool) void;
 pub extern fn CameraPitch(camera: *raylib.Camera, angle: f32, lockView: bool, rotateAroundTarget: bool, rotateUp: bool) void;
 pub extern fn CameraMoveForward(camera: *raylib.Camera, distance: f32, moveInWorldPlane: bool) void;
+pub extern fn CameraMoveRight(camera: *raylib.Camera, distance: f32, moveInWorldPlane: bool) void;
 
 const minSpeed = -1;
 const maxSpeed = 1;
 const speedSensitivity = 0.1;
+const strafeSpeed = 5;
 
 const Cube = struct {
     position: raylib.Vector3,
@@ -111,6 +113,13 @@ pub fn main() !void {
         }
         if (raylib.IsKeyReleased(raylib.KEY_S))
             speedStop = false;
+        // TODO: Make strafe control realistic (simulate thrusters)
+        if (raylib.IsKeyDown(raylib.KEY_A)) {
+            CameraMoveRight(&camera, -strafeSpeed * frameTime, false);
+        }
+        if (raylib.IsKeyDown(raylib.KEY_D)) {
+            CameraMoveRight(&camera, strafeSpeed * frameTime, false);
+        }
 
         if (raylib.IsCursorHidden()) {
             const CAMERA_MOUSE_MOVE_SENSITIVITY = 0.005;
