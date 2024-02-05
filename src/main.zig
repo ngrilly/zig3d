@@ -3,12 +3,6 @@ const raylib = @import("raylib.zig");
 const light = @import("light.zig");
 const Skybox = @import("Skybox.zig");
 
-// TODO: I manually declare these raylib functions because I can't include rcamera.h. Find a better way. And namespace this in raylib.
-pub extern fn CameraYaw(camera: *raylib.Camera, angle: f32, rotateAroundTarget: bool) void;
-pub extern fn CameraPitch(camera: *raylib.Camera, angle: f32, lockView: bool, rotateAroundTarget: bool, rotateUp: bool) void;
-pub extern fn CameraMoveForward(camera: *raylib.Camera, distance: f32, moveInWorldPlane: bool) void;
-pub extern fn CameraMoveRight(camera: *raylib.Camera, distance: f32, moveInWorldPlane: bool) void;
-
 const minSpeed = -1;
 const maxSpeed = 1;
 const speedSensitivity = 0.1;
@@ -115,10 +109,10 @@ pub fn main() !void {
             speedStop = false;
         // TODO: Make strafe control realistic (simulate thrusters)
         if (raylib.IsKeyDown(raylib.KEY_A)) {
-            CameraMoveRight(&camera, -strafeSpeed * frameTime, false);
+            cameraMoveRight(&camera, -strafeSpeed * frameTime);
         }
         if (raylib.IsKeyDown(raylib.KEY_D)) {
-            CameraMoveRight(&camera, strafeSpeed * frameTime, false);
+            cameraMoveRight(&camera, strafeSpeed * frameTime);
         }
 
         if (raylib.IsCursorHidden()) {
@@ -131,10 +125,10 @@ pub fn main() !void {
             // const mousePositionYPercent = (screenHeight - mousePosition.y) / screenHeight;
             // CameraYaw(&camera, (mousePositionXPercent - 0.5) * CAMERA_MOUSE_MOVE_SENSITIVITY, false);
             // CameraPitch(&camera, (mousePositionYPercent - 0.5) * CAMERA_MOUSE_MOVE_SENSITIVITY, true, false, false);
-            CameraYaw(&camera, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY, false);
-            CameraPitch(&camera, -mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY, true, false, false);
+            cameraYaw(&camera, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY);
+            cameraPitch(&camera, -mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY, true, false);
             // raylib.UpdateCamera(&camera, raylib.CAMERA_FIRST_PERSON);
-            CameraMoveForward(&camera, speed, false);
+            cameraMoveForward(&camera, speed);
         }
 
         // Update physics
@@ -234,4 +228,110 @@ fn drawCrosshair() void {
     // TODO: Should we visualize yaw and pitch changes with a circle?
     // const mousePosition = raylib.GetMousePosition();
     // raylib.DrawCircleLinesV(mousePosition, 10, raylib.WHITE);
+}
+
+//--------------------------------------------------------------------------------
+// Camera (ported from raylib rcamera.h to Zig with some simplifications)
+//--------------------------------------------------------------------------------
+
+// Returns the cameras forward vector (normalized)
+fn getCameraForward(camera: *raylib.Camera) raylib.Vector3 {
+    return raylib.Vector3Normalize(raylib.Vector3Subtract(camera.target, camera.position));
+}
+
+// Returns the cameras up vector (normalized)
+// Note: The up vector might not be perpendicular to the forward vector
+fn getCameraUp(camera: *raylib.Camera) raylib.Vector3 {
+    return raylib.Vector3Normalize(camera.up);
+}
+
+// Returns the cameras right vector (normalized)
+fn getCameraRight(camera: *raylib.Camera) raylib.Vector3 {
+    const forward = getCameraForward(camera);
+    const up = getCameraUp(camera);
+
+    return raylib.Vector3CrossProduct(forward, up);
+}
+
+// Moves the camera in its forward direction
+fn cameraMoveForward(camera: *raylib.Camera, distance: f32) void {
+    var forward = getCameraForward(camera);
+
+    // Scale by distance
+    forward = raylib.Vector3Scale(forward, distance);
+
+    // Move position and target
+    camera.position = raylib.Vector3Add(camera.position, forward);
+    camera.target = raylib.Vector3Add(camera.target, forward);
+}
+
+// Moves the camera target in its current right direction
+fn cameraMoveRight(camera: *raylib.Camera, distance: f32) void {
+    var right = getCameraRight(camera);
+
+    // Scale by distance
+    right = raylib.Vector3Scale(right, distance);
+
+    // Move position and target
+    camera.position = raylib.Vector3Add(camera.position, right);
+    camera.target = raylib.Vector3Add(camera.target, right);
+}
+
+// Rotates the camera around its up vector
+// Yaw is "looking left and right"
+// Note: angle must be provided in radians
+fn cameraYaw(camera: *raylib.Camera, angle: f32) void {
+    // Rotation axis
+    const up = getCameraUp(camera);
+
+    // View vector
+    var targetPosition = raylib.Vector3Subtract(camera.target, camera.position);
+
+    // Rotate view vector around up axis
+    targetPosition = raylib.Vector3RotateByAxisAngle(targetPosition, up, angle);
+
+    // Move target relative to position
+    camera.target = raylib.Vector3Add(camera.position, targetPosition);
+}
+
+// Rotates the camera around its right vector, pitch is "looking up and down"
+//  - lockView prevents camera overrotation (aka "somersaults")
+//  - rotateAroundTarget defines if rotation is around target or around its position
+//  - rotateUp rotates the up direction as well (typically only usefull in CAMERA_FREE)
+// NOTE: angle must be provided in radians
+fn cameraPitch(camera: *raylib.Camera, requestedAngle: f32, lockView: bool, rotateUp: bool) void {
+    // View vector
+    var targetPosition = raylib.Vector3Subtract(camera.target, camera.position);
+
+    var angle = requestedAngle;
+    if (lockView) {
+        // In these camera modes we clamp the Pitch angle
+        // to allow only viewing straight up or down.
+
+        // Clamp view up
+        const up = getCameraUp(camera);
+        var maxAngleUp = raylib.Vector3Angle(up, targetPosition);
+        maxAngleUp -= 0.001; // avoid numerical errors
+        if (angle > maxAngleUp) angle = maxAngleUp;
+
+        // Clamp view down
+        var maxAngleDown = raylib.Vector3Angle(raylib.Vector3Negate(up), targetPosition);
+        maxAngleDown *= -1.0; // downwards angle is negative
+        maxAngleDown += 0.001; // avoid numerical errors
+        if (angle < maxAngleDown) angle = maxAngleDown;
+    }
+
+    // Rotation axis
+    const right = getCameraRight(camera);
+
+    // Rotate view vector around right axis
+    targetPosition = raylib.Vector3RotateByAxisAngle(targetPosition, right, angle);
+
+    // Move target relative to position
+    camera.target = raylib.Vector3Add(camera.position, targetPosition);
+
+    if (rotateUp) {
+        // Rotate up direction around right axis
+        camera.up = raylib.Vector3RotateByAxisAngle(camera.up, right, angle);
+    }
 }
