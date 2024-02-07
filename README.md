@@ -45,7 +45,6 @@ VBO: Vertex Buffer Object
 
 # Todo
 
-- Fly in all directions (currently limited by the camera)
 - Fly using newtonian physics
 - Check lighting is right
 - Structure the code

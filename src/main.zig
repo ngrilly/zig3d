@@ -127,7 +127,7 @@ pub fn main() !void {
             // CameraYaw(&camera, (mousePositionXPercent - 0.5) * CAMERA_MOUSE_MOVE_SENSITIVITY, false);
             // CameraPitch(&camera, (mousePositionYPercent - 0.5) * CAMERA_MOUSE_MOVE_SENSITIVITY, true, false, false);
             cameraYaw(&camera, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY);
-            cameraPitch(&camera, -mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY, true, false);
+            cameraPitch(&camera, -mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY);
             // raylib.UpdateCamera(&camera, raylib.CAMERA_FIRST_PERSON);
             cameraMoveForward(&camera, speed * frameTime);
         }
@@ -296,31 +296,10 @@ fn cameraYaw(camera: *raylib.Camera, angle: f32) void {
 }
 
 // Rotates the camera around its right vector, pitch is "looking up and down"
-//  - lockView prevents camera overrotation (aka "somersaults")
-//  - rotateAroundTarget defines if rotation is around target or around its position
-//  - rotateUp rotates the up direction as well (typically only usefull in CAMERA_FREE)
 // NOTE: angle must be provided in radians
-fn cameraPitch(camera: *raylib.Camera, requestedAngle: f32, lockView: bool, rotateUp: bool) void {
+fn cameraPitch(camera: *raylib.Camera, angle: f32) void {
     // View vector
     var targetPosition = raylib.Vector3Subtract(camera.target, camera.position);
-
-    var angle = requestedAngle;
-    if (lockView) {
-        // In these camera modes we clamp the Pitch angle
-        // to allow only viewing straight up or down.
-
-        // Clamp view up
-        const up = getCameraUp(camera);
-        var maxAngleUp = raylib.Vector3Angle(up, targetPosition);
-        maxAngleUp -= 0.001; // avoid numerical errors
-        if (angle > maxAngleUp) angle = maxAngleUp;
-
-        // Clamp view down
-        var maxAngleDown = raylib.Vector3Angle(raylib.Vector3Negate(up), targetPosition);
-        maxAngleDown *= -1.0; // downwards angle is negative
-        maxAngleDown += 0.001; // avoid numerical errors
-        if (angle < maxAngleDown) angle = maxAngleDown;
-    }
 
     // Rotation axis
     const right = getCameraRight(camera);
@@ -331,8 +310,6 @@ fn cameraPitch(camera: *raylib.Camera, requestedAngle: f32, lockView: bool, rota
     // Move target relative to position
     camera.target = raylib.Vector3Add(camera.position, targetPosition);
 
-    if (rotateUp) {
-        // Rotate up direction around right axis
-        camera.up = raylib.Vector3RotateByAxisAngle(camera.up, right, angle);
-    }
+    // Rotate up direction around right axis
+    camera.up = raylib.Vector3RotateByAxisAngle(camera.up, right, angle);
 }
