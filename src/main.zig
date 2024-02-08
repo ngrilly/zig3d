@@ -9,6 +9,28 @@ const maxSpeed = 50;
 const speedSensitivity = 5;
 const strafeSpeed = 5;
 
+const Player = struct {
+    position: raylib.Vector3,
+    orientation: raylib.Quaternion,
+    speed: f32,
+
+    fn move(self: *Player, x: f32, y: f32, z: f32) void {
+        const localMovement = raylib.Vector3{ .x = x, .y = y, .z = z };
+        const worldMovement = raylib.Vector3RotateByQuaternion(localMovement, self.orientation);
+        self.position = raylib.Vector3Add(self.position, worldMovement);
+    }
+
+    fn lookForwardVector(self: Player) raylib.Vector3 {
+        const forward = raylib.Vector3{ .x = 0, .y = 0, .z = 1 };
+        return raylib.Vector3Add(self.position, raylib.Vector3RotateByQuaternion(forward, self.orientation));
+    }
+
+    fn lookUpVector(self: Player) raylib.Vector3 {
+        const up = raylib.Vector3{ .x = 0, .y = 1, .z = 0 };
+        return raylib.Vector3RotateByQuaternion(up, self.orientation);
+    }
+};
+
 const Cube = struct {
     position: raylib.Vector3,
     size: raylib.Vector3,
@@ -41,19 +63,15 @@ pub fn main() !void {
     defer raylib.UnloadMusicStream(engineNoise);
     raylib.PlayMusicStream(engineNoise);
 
-    var camera = raylib.Camera{
-        .position = raylib.Vector3{ .x = 0, .y = 2, .z = -15 },
-        .target = raylib.Vector3{ .x = 0, .y = 0, .z = 0 },
-        .up = raylib.Vector3{ .x = 0, .y = 1, .z = 0 },
-        .fovy = 60,
-        .projection = raylib.CAMERA_PERSPECTIVE,
-    };
-
     // Load skybox model
     const skybox = Skybox.init();
     defer skybox.deinit();
 
-    var speed: f32 = 0;
+    var player = Player{
+        .position = .{ .x = 0, .y = 2, .z = -15 },
+        .orientation = raylib.QuaternionIdentity(),
+        .speed = 0,
+    };
     var speedStop = false; // TODO: find a better name
 
     var cubes = createCubes(random);
@@ -95,14 +113,14 @@ pub fn main() !void {
             raylib.DisableCursor();
         if (raylib.IsKeyPressed(raylib.KEY_ESCAPE))
             raylib.EnableCursor();
-        if (raylib.IsKeyDown(raylib.KEY_W) and speed < maxSpeed)
-            speed += speedSensitivity * frameTime;
-        if (raylib.IsKeyDown(raylib.KEY_S) and speed > minSpeed and !speedStop) {
-            const previousSpeed = speed;
-            speed -= speedSensitivity * frameTime;
+        if (raylib.IsKeyDown(raylib.KEY_W) and player.speed < maxSpeed)
+            player.speed += speedSensitivity * frameTime;
+        if (raylib.IsKeyDown(raylib.KEY_S) and player.speed > minSpeed and !speedStop) {
+            const previousSpeed = player.speed;
+            player.speed -= speedSensitivity * frameTime;
             // Player needs to release the key and press it again to reverse engine
-            if (previousSpeed > 0 and speed <= 0) {
-                speed = 0;
+            if (previousSpeed > 0 and player.speed <= 0) {
+                player.speed = 0;
                 speedStop = true;
             }
         }
@@ -110,26 +128,19 @@ pub fn main() !void {
             speedStop = false;
         // TODO: Make strafe control realistic (simulate thrusters)
         if (raylib.IsKeyDown(raylib.KEY_A)) {
-            cameraMoveRight(&camera, -strafeSpeed * frameTime);
+            player.move(strafeSpeed * frameTime, 0, 0);
         }
         if (raylib.IsKeyDown(raylib.KEY_D)) {
-            cameraMoveRight(&camera, strafeSpeed * frameTime);
+            player.move(-strafeSpeed * frameTime, 0, 0);
         }
 
         if (raylib.IsCursorHidden()) {
             const CAMERA_MOUSE_MOVE_SENSITIVITY = 0.005;
             const mousePositionDelta = raylib.GetMouseDelta();
-            // const mousePosition = raylib.GetMousePosition();
-            // const screenWidth: f32 = @floatFromInt(raylib.GetScreenWidth());
-            // const screenHeight: f32 = @floatFromInt(raylib.GetScreenHeight());
-            // const mousePositionXPercent = (screenWidth - mousePosition.x) / screenWidth;
-            // const mousePositionYPercent = (screenHeight - mousePosition.y) / screenHeight;
-            // CameraYaw(&camera, (mousePositionXPercent - 0.5) * CAMERA_MOUSE_MOVE_SENSITIVITY, false);
-            // CameraPitch(&camera, (mousePositionYPercent - 0.5) * CAMERA_MOUSE_MOVE_SENSITIVITY, true, false, false);
-            cameraYaw(&camera, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY);
-            cameraPitch(&camera, -mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY);
-            // raylib.UpdateCamera(&camera, raylib.CAMERA_FIRST_PERSON);
-            cameraMoveForward(&camera, speed * frameTime);
+            player.orientation = quaternionRotateX(player.orientation, mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY);
+            player.orientation = quaternionRotateY(player.orientation, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY);
+            // TODO: renormalize orientation to not accumulate errors?
+            player.move(0, 0, player.speed * frameTime);
         }
 
         // Update physics
@@ -139,20 +150,29 @@ pub fn main() !void {
         }
 
         // Update audio
-        const engineVolume = @abs(speed) / maxSpeed;
+        const engineVolume = @abs(player.speed) / maxSpeed;
         raylib.SetMusicVolume(engineNoise, engineVolume);
         raylib.UpdateMusicStream(engineNoise);
 
         // Update the shader with the camera view vector (points towards { 0.0, 0.0, 0.0 })
-        const cameraPos = [_]f32{ camera.position.x, camera.position.y, camera.position.z };
+        const cameraPos = [_]f32{ player.position.x, player.position.y, player.position.z };
         raylib.SetShaderValue(cubeShader, cubeShader.locs[raylib.SHADER_LOC_VECTOR_VIEW], &cameraPos, raylib.SHADER_UNIFORM_VEC3);
+
+        const firstPersonCamera = raylib.Camera{
+            .position = player.position,
+            .target = player.lookForwardVector(),
+            .up = player.lookUpVector(),
+            .fovy = 60,
+            .projection = raylib.CAMERA_PERSPECTIVE,
+        };
 
         // Draw
         raylib.BeginDrawing();
         {
             raylib.ClearBackground(raylib.BLACK);
 
-            raylib.BeginMode3D(camera);
+            // TODO: Would it be better to be able to pass a view matrix instead of a Camera to BegingMode3D?
+            raylib.BeginMode3D(firstPersonCamera);
             {
                 skybox.draw();
 
@@ -175,7 +195,7 @@ pub fn main() !void {
 
             drawCrosshair();
             raylib.DrawFPS(10, 10);
-            raylib.DrawText(raylib.TextFormat("Speed: %.1f m/s", speed), raylib.GetScreenWidth() - 220, raylib.GetScreenHeight() - 30, 20, raylib.LIME);
+            raylib.DrawText(raylib.TextFormat("Speed: %.1f m/s", player.speed), raylib.GetScreenWidth() - 220, raylib.GetScreenHeight() - 30, 20, raylib.LIME);
         }
         raylib.EndDrawing();
     }
@@ -232,84 +252,65 @@ fn drawCrosshair() void {
 }
 
 //--------------------------------------------------------------------------------
-// Camera (ported from raylib rcamera.h to Zig with some simplifications)
+// Quaternion functions
 //--------------------------------------------------------------------------------
 
-// Returns the cameras forward vector (normalized)
-fn getCameraForward(camera: *raylib.Camera) raylib.Vector3 {
-    return raylib.Vector3Normalize(raylib.Vector3Subtract(camera.target, camera.position));
+/// Rotates the given quaternion by the given angle, around the x-axis.
+fn quaternionRotateX(q: raylib.Quaternion, angle: f32) raylib.Quaternion {
+    const halfAngle = angle * 0.5;
+
+    const qx = q.x;
+    const qy = q.y;
+    const qz = q.z;
+    const qw = q.w;
+
+    const bx = std.math.sin(halfAngle);
+    const bw = std.math.cos(halfAngle);
+
+    return raylib.Quaternion{
+        .x = qx * bw + qw * bx,
+        .y = qy * bw + qz * bx,
+        .z = qz * bw - qy * bx,
+        .w = qw * bw - qx * bx,
+    };
 }
 
-// Returns the cameras up vector (normalized)
-// Note: The up vector might not be perpendicular to the forward vector
-fn getCameraUp(camera: *raylib.Camera) raylib.Vector3 {
-    return raylib.Vector3Normalize(camera.up);
+/// Rotates the given quaternion by the given angle, around the y-axis.
+fn quaternionRotateY(q: raylib.Quaternion, angle: f32) raylib.Quaternion {
+    const halfAngle = angle * 0.5;
+
+    const qx = q.x;
+    const qy = q.y;
+    const qz = q.z;
+    const qw = q.w;
+
+    const by = std.math.sin(halfAngle);
+    const bw = std.math.cos(halfAngle);
+
+    return raylib.Quaternion{
+        .x = qx * bw - qz * by,
+        .y = qy * bw + qw * by,
+        .z = qz * bw + qx * by,
+        .w = qw * bw - qy * by,
+    };
 }
 
-// Returns the cameras right vector (normalized)
-fn getCameraRight(camera: *raylib.Camera) raylib.Vector3 {
-    const forward = getCameraForward(camera);
-    const up = getCameraUp(camera);
+/// Rotates the given quaternion by the given angle, around the z-axis.
+fn quaternionRotateZ(q: raylib.Quaternion, angle: f32) raylib.Quaternion {
+    const halfAngle = angle * 0.5;
 
-    return raylib.Vector3CrossProduct(forward, up);
-}
+    const qx = q.x;
+    const qy = q.y;
+    const qz = q.z;
+    const qw = q.w;
 
-// Moves the camera in its forward direction
-fn cameraMoveForward(camera: *raylib.Camera, distance: f32) void {
-    var forward = getCameraForward(camera);
+    const bz = std.math.sin(halfAngle);
+    const bw = std.math.cos(halfAngle);
 
-    // Scale by distance
-    forward = raylib.Vector3Scale(forward, distance);
-
-    // Move position and target
-    camera.position = raylib.Vector3Add(camera.position, forward);
-    camera.target = raylib.Vector3Add(camera.target, forward);
-}
-
-// Moves the camera target in its current right direction
-fn cameraMoveRight(camera: *raylib.Camera, distance: f32) void {
-    var right = getCameraRight(camera);
-
-    // Scale by distance
-    right = raylib.Vector3Scale(right, distance);
-
-    // Move position and target
-    camera.position = raylib.Vector3Add(camera.position, right);
-    camera.target = raylib.Vector3Add(camera.target, right);
-}
-
-// Rotates the camera around its up vector
-// Yaw is "looking left and right"
-// Note: angle must be provided in radians
-fn cameraYaw(camera: *raylib.Camera, angle: f32) void {
-    // Rotation axis
-    const up = getCameraUp(camera);
-
-    // View vector
-    var targetPosition = raylib.Vector3Subtract(camera.target, camera.position);
-
-    // Rotate view vector around up axis
-    targetPosition = raylib.Vector3RotateByAxisAngle(targetPosition, up, angle);
-
-    // Move target relative to position
-    camera.target = raylib.Vector3Add(camera.position, targetPosition);
-}
-
-// Rotates the camera around its right vector, pitch is "looking up and down"
-// NOTE: angle must be provided in radians
-fn cameraPitch(camera: *raylib.Camera, angle: f32) void {
-    // View vector
-    var targetPosition = raylib.Vector3Subtract(camera.target, camera.position);
-
-    // Rotation axis
-    const right = getCameraRight(camera);
-
-    // Rotate view vector around right axis
-    targetPosition = raylib.Vector3RotateByAxisAngle(targetPosition, right, angle);
-
-    // Move target relative to position
-    camera.target = raylib.Vector3Add(camera.position, targetPosition);
-
-    // Rotate up direction around right axis
-    camera.up = raylib.Vector3RotateByAxisAngle(camera.up, right, angle);
+    return raylib.Quaternion{
+        .x = qx * bw - qy * bz,
+        .y = qy * bw + qx * bz,
+        .z = qz * bw + qw * bz,
+        .w = qw * bw - qz * bz,
+    };
 }
