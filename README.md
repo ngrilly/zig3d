@@ -1,17 +1,31 @@
-# Learnings
+# Zig 3D
 
-## How to use raylib?
+A repository where I'm playing with Zig, raylib and OpenGL.
 
-- Add raylib as a dependency:
+## Build and run from source
+
+Install [Zig](https://ziglang.org/) (tested with Zig 0.12.0-dev.2139+e025ad7b4)
+
+```
+$ git clone "https://github.com/ngrilly/zig3d.git"
+$ cd zig3d
+$ zig build run
+```
+
+## Learnings
+
+### Steps I followed to use raylib
+
+1. Add raylib as a dependency:
     ```
     zig fetch --save=raylib https://github.com/raysan5/raylib/archive/9d628d1d499f8ad9c0e6fbed69914cecb611d6cd.tar.gz
     ```
-- Add the following in build.zig:
+2. Add the following in build.zig:
     ```
     const raylib_dep = b.dependency("raylib", .{});
     exe.linkLibrary(raylib_dep.artifact("raylib"));
     ```
-- Import it in main.zig:
+3. Import it in main.zig:
     ```
     const raylib = @cImport({
         @cInclude("raylib.h");
@@ -20,14 +34,14 @@
 
 How does the above compare to using an external Go module?
 
-## Glossary
+### Glossary
 
 LOD: Level Of Detail
 VBO: Vertex Buffer Object
 
-## References
+### References
 
-### Game physis
+#### Game physis
 
 - https://www.youtube.com/watch?v=3lBYVSplAuo
 - https://gafferongames.com/post/physics_in_3d/
