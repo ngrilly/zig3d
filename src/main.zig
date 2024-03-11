@@ -51,7 +51,7 @@ pub fn main() !void {
     const random = prng.random();
 
     raylib.SetConfigFlags(raylib.FLAG_WINDOW_RESIZABLE);
-    raylib.InitWindow(initScreenWidth, initScreenHeight, "raylib [core] example - basic window");
+    raylib.InitWindow(initScreenWidth, initScreenHeight, "Zig 3D");
     raylib.SetExitKey(raylib.KEY_NULL);
 
     raylib.SetTargetFPS(60);
