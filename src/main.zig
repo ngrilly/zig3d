@@ -13,6 +13,7 @@ const Player = struct {
     position: raylib.Vector3,
     orientation: raylib.Quaternion,
     speed: f32,
+    speedStop: bool = false, // TODO: find a better name
 
     fn move(self: *Player, x: f32, y: f32, z: f32) void {
         const localMovement = raylib.Vector3{ .x = x, .y = y, .z = z };
@@ -72,7 +73,6 @@ pub fn main() !void {
         .orientation = raylib.QuaternionIdentity(),
         .speed = 0,
     };
-    var speedStop = false; // TODO: find a better name
 
     var cubes = createCubes(random);
 
@@ -105,43 +105,7 @@ pub fn main() !void {
     };
 
     while (!raylib.WindowShouldClose()) {
-        const frameTime = raylib.GetFrameTime();
-
-        // Process inputs
-        // TODO: support non-QWERTY keyboard?
-        if (raylib.IsMouseButtonPressed(raylib.MOUSE_BUTTON_LEFT))
-            raylib.DisableCursor();
-        if (raylib.IsKeyPressed(raylib.KEY_ESCAPE))
-            raylib.EnableCursor();
-        if (raylib.IsKeyDown(raylib.KEY_W) and player.speed < maxSpeed)
-            player.speed += speedSensitivity * frameTime;
-        if (raylib.IsKeyDown(raylib.KEY_S) and player.speed > minSpeed and !speedStop) {
-            const previousSpeed = player.speed;
-            player.speed -= speedSensitivity * frameTime;
-            // Player needs to release the key and press it again to reverse engine
-            if (previousSpeed > 0 and player.speed <= 0) {
-                player.speed = 0;
-                speedStop = true;
-            }
-        }
-        if (raylib.IsKeyReleased(raylib.KEY_S))
-            speedStop = false;
-        // TODO: Make strafe control realistic (simulate thrusters)
-        if (raylib.IsKeyDown(raylib.KEY_A)) {
-            player.move(strafeSpeed * frameTime, 0, 0);
-        }
-        if (raylib.IsKeyDown(raylib.KEY_D)) {
-            player.move(-strafeSpeed * frameTime, 0, 0);
-        }
-
-        if (raylib.IsCursorHidden()) {
-            const CAMERA_MOUSE_MOVE_SENSITIVITY = 0.005;
-            const mousePositionDelta = raylib.GetMouseDelta();
-            player.orientation = quaternionRotateX(player.orientation, mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY);
-            player.orientation = quaternionRotateY(player.orientation, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY);
-            // TODO: renormalize orientation to not accumulate errors?
-            player.move(0, 0, player.speed * frameTime);
-        }
+        processInputs(&player);
 
         // Update physics
         for (&cubes) |*c| {
@@ -235,6 +199,51 @@ fn createCubes(random: std.rand.Random) [cubeCount]Cube {
     }
 
     return cubes;
+}
+
+fn processInputs(player: *Player) void {
+    const frameTime = raylib.GetFrameTime();
+
+    // TODO: support non-QWERTY keyboard?
+    if (raylib.IsMouseButtonPressed(raylib.MOUSE_BUTTON_LEFT))
+        raylib.DisableCursor();
+
+    if (raylib.IsKeyPressed(raylib.KEY_ESCAPE))
+        raylib.EnableCursor();
+
+    if (raylib.IsKeyDown(raylib.KEY_W) and player.speed < maxSpeed)
+        player.speed += speedSensitivity * frameTime;
+
+    if (raylib.IsKeyDown(raylib.KEY_S) and player.speed > minSpeed and !player.speedStop) {
+        const previousSpeed = player.speed;
+        player.speed -= speedSensitivity * frameTime;
+        // Player needs to release the key and press it again to reverse engine
+        if (previousSpeed > 0 and player.speed <= 0) {
+            player.speed = 0;
+            player.speedStop = true;
+        }
+    }
+
+    if (raylib.IsKeyReleased(raylib.KEY_S))
+        player.speedStop = false;
+
+    // TODO: Make strafe control realistic (simulate thrusters)
+    if (raylib.IsKeyDown(raylib.KEY_A)) {
+        player.move(strafeSpeed * frameTime, 0, 0);
+    }
+
+    if (raylib.IsKeyDown(raylib.KEY_D)) {
+        player.move(-strafeSpeed * frameTime, 0, 0);
+    }
+
+    if (raylib.IsCursorHidden()) {
+        const CAMERA_MOUSE_MOVE_SENSITIVITY = 0.005;
+        const mousePositionDelta = raylib.GetMouseDelta();
+        player.orientation = quaternionRotateX(player.orientation, mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY);
+        player.orientation = quaternionRotateY(player.orientation, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY);
+        // TODO: renormalize orientation to not accumulate errors?
+        player.move(0, 0, player.speed * frameTime);
+    }
 }
 
 fn drawCrosshair() void {
