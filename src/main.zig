@@ -1,5 +1,6 @@
 const std = @import("std");
 const raylib = @import("raylib.zig");
+const quaternion = @import("quaternion.zig");
 const light = @import("light.zig");
 const Skybox = @import("Skybox.zig");
 
@@ -239,8 +240,8 @@ fn processInputs(player: *Player) void {
     if (raylib.IsCursorHidden()) {
         const CAMERA_MOUSE_MOVE_SENSITIVITY = 0.005;
         const mousePositionDelta = raylib.GetMouseDelta();
-        player.orientation = quaternionRotateX(player.orientation, mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY);
-        player.orientation = quaternionRotateY(player.orientation, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY);
+        player.orientation = quaternion.rotateX(player.orientation, mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY);
+        player.orientation = quaternion.rotateY(player.orientation, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY);
         // TODO: renormalize orientation to not accumulate errors?
         player.move(0, 0, player.speed * frameTime);
     }
@@ -258,68 +259,4 @@ fn drawCrosshair() void {
     // TODO: Should we visualize yaw and pitch changes with a circle?
     // const mousePosition = raylib.GetMousePosition();
     // raylib.DrawCircleLinesV(mousePosition, 10, raylib.WHITE);
-}
-
-//--------------------------------------------------------------------------------
-// Quaternion functions
-//--------------------------------------------------------------------------------
-
-/// Rotates the given quaternion by the given angle, around the x-axis.
-fn quaternionRotateX(q: raylib.Quaternion, angle: f32) raylib.Quaternion {
-    const halfAngle = angle * 0.5;
-
-    const qx = q.x;
-    const qy = q.y;
-    const qz = q.z;
-    const qw = q.w;
-
-    const bx = std.math.sin(halfAngle);
-    const bw = std.math.cos(halfAngle);
-
-    return raylib.Quaternion{
-        .x = qx * bw + qw * bx,
-        .y = qy * bw + qz * bx,
-        .z = qz * bw - qy * bx,
-        .w = qw * bw - qx * bx,
-    };
-}
-
-/// Rotates the given quaternion by the given angle, around the y-axis.
-fn quaternionRotateY(q: raylib.Quaternion, angle: f32) raylib.Quaternion {
-    const halfAngle = angle * 0.5;
-
-    const qx = q.x;
-    const qy = q.y;
-    const qz = q.z;
-    const qw = q.w;
-
-    const by = std.math.sin(halfAngle);
-    const bw = std.math.cos(halfAngle);
-
-    return raylib.Quaternion{
-        .x = qx * bw - qz * by,
-        .y = qy * bw + qw * by,
-        .z = qz * bw + qx * by,
-        .w = qw * bw - qy * by,
-    };
-}
-
-/// Rotates the given quaternion by the given angle, around the z-axis.
-fn quaternionRotateZ(q: raylib.Quaternion, angle: f32) raylib.Quaternion {
-    const halfAngle = angle * 0.5;
-
-    const qx = q.x;
-    const qy = q.y;
-    const qz = q.z;
-    const qw = q.w;
-
-    const bz = std.math.sin(halfAngle);
-    const bw = std.math.cos(halfAngle);
-
-    return raylib.Quaternion{
-        .x = qx * bw - qy * bz,
-        .y = qy * bw + qx * bz,
-        .z = qz * bw + qw * bz,
-        .w = qw * bw - qz * bz,
-    };
 }
