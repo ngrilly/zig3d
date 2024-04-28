@@ -114,10 +114,7 @@ pub fn main() !void {
             c.rotationAngle = @floatCast(c.rotationSpeed * raylib.GetTime());
         }
 
-        // Update audio
-        const engineVolume = @abs(player.speed) / maxSpeed;
-        raylib.SetMusicVolume(engineNoise, engineVolume);
-        raylib.UpdateMusicStream(engineNoise);
+        updateEngineNoise(engineNoise, player);
 
         // Update the shader with the camera view vector (points towards { 0.0, 0.0, 0.0 })
         const cameraPos = [_]f32{ player.position.x, player.position.y, player.position.z };
@@ -245,6 +242,12 @@ fn processInputs(player: *Player) void {
         // TODO: renormalize orientation to not accumulate errors?
         player.move(0, 0, player.speed * frameTime);
     }
+}
+
+fn updateEngineNoise(engineNoise: raylib.Music, player: Player) void {
+    const engineVolume = @abs(player.speed) / maxSpeed;
+    raylib.SetMusicVolume(engineNoise, engineVolume);
+    raylib.UpdateMusicStream(engineNoise);
 }
 
 fn drawCrosshair() void {
