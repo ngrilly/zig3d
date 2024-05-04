@@ -65,45 +65,18 @@ pub fn main() !void {
     defer raylib.UnloadMusicStream(engineNoise);
     raylib.PlayMusicStream(engineNoise);
 
-    // Load skybox model
-    const skybox = Skybox.init();
-    defer skybox.deinit();
-
     var player = Player{
         .position = .{ .x = 0, .y = 2, .z = -15 },
         .orientation = raylib.QuaternionIdentity(),
         .speed = 0,
     };
 
+    // TODO: Better to use static or heap if too large for stack allocation? How is it done in TigerBeetle?
     var cubes = createCubes(random);
 
-    const cubeShader = raylib.LoadShaderFromMemory(@embedFile("shaders/cube.vs"), @embedFile("shaders/cube.fs"));
-    defer raylib.UnloadShader(cubeShader);
-    cubeShader.locs[raylib.SHADER_LOC_VECTOR_VIEW] = raylib.GetShaderLocation(cubeShader, "viewPos");
-
-    // Set ambient light level (some basic lighting)
-    const ambientLoc = raylib.GetShaderLocation(cubeShader, "ambient");
-    raylib.SetShaderValue(cubeShader, ambientLoc, &[4]f32{ 0.1, 0.1, 0.1, 1.0 }, raylib.SHADER_UNIFORM_VEC4);
-
-    // Create lights
-    const lights = [_]light.Light{
-        light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = -2, .y = 1, .z = -2 }, raylib.Vector3Zero(), raylib.YELLOW, cubeShader),
-        light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = 2, .y = 1, .z = 2 }, raylib.Vector3Zero(), raylib.RED, cubeShader),
-        light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = -2, .y = 1, .z = 2 }, raylib.Vector3Zero(), raylib.GREEN, cubeShader),
-        light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = 2, .y = 1, .z = -2 }, raylib.Vector3Zero(), raylib.BLUE, cubeShader),
-    };
-
-    // TODO: is there a way to avoid undefined?
-    var models: [cubes.len]raylib.Model = undefined;
-    for (cubes, &models) |c, *m| {
-        const mesh = raylib.GenMeshCube(c.size.x, c.size.y, c.size.z);
-        m.* = raylib.LoadModelFromMesh(mesh);
-        m.materials[0].shader = cubeShader;
-    }
-
-    defer for (models) |m| {
-        raylib.UnloadModel(m);
-    };
+    // Pass cubes to Renderer.init to create a raylib model for each cube.
+    const renderer = Renderer.init(cubes);
+    defer renderer.deinit();
 
     while (!raylib.WindowShouldClose()) {
         processInputs(&player);
@@ -116,50 +89,9 @@ pub fn main() !void {
 
         updateEngineNoise(engineNoise, player);
 
-        // Update the shader with the camera view vector (points towards { 0.0, 0.0, 0.0 })
-        const cameraPos = [_]f32{ player.position.x, player.position.y, player.position.z };
-        raylib.SetShaderValue(cubeShader, cubeShader.locs[raylib.SHADER_LOC_VECTOR_VIEW], &cameraPos, raylib.SHADER_UNIFORM_VEC3);
-
-        const firstPersonCamera = raylib.Camera{
-            .position = player.position,
-            .target = player.lookForwardVector(),
-            .up = player.lookUpVector(),
-            .fovy = 60,
-            .projection = raylib.CAMERA_PERSPECTIVE,
-        };
-
-        // Draw
-        raylib.BeginDrawing();
-        {
-            raylib.ClearBackground(raylib.BLACK);
-
-            // TODO: Would it be better to be able to pass a view matrix instead of a Camera to BegingMode3D?
-            raylib.BeginMode3D(firstPersonCamera);
-            {
-                skybox.draw();
-
-                for (cubes, models) |c, model| {
-                    const scale = raylib.Vector3{ .x = 1, .y = 1, .z = 1 };
-                    raylib.DrawModelEx(model, c.position, c.rotationAxis, c.rotationAngle, scale, c.color);
-                }
-
-                // Draw spheres to show where the lights are
-                for (lights) |l| {
-                    if (l.enabled)
-                        raylib.DrawSphereEx(l.position, 0.2, 8, 8, l.color)
-                    else
-                        raylib.DrawSphereWires(l.position, 0.2, 8, 8, raylib.ColorAlpha(l.color, 0.3));
-                }
-
-                raylib.DrawGrid(20, 1);
-            }
-            raylib.EndMode3D();
-
-            drawCrosshair();
-            raylib.DrawFPS(10, 10);
-            raylib.DrawText(raylib.TextFormat("Speed: %.1f m/s", player.speed), raylib.GetScreenWidth() - 220, raylib.GetScreenHeight() - 30, 20, raylib.LIME);
-        }
-        raylib.EndDrawing();
+        // TODO: After updating the cube physics, should we have a function updating the raylib models, before drawing,
+        // instead of passing `cubes` to draw? Will be necessary if we start adding/removing cubes as the game runs.
+        renderer.draw(player, cubes);
     }
 
     raylib.CloseWindow();
@@ -250,16 +182,107 @@ fn updateEngineNoise(engineNoise: raylib.Music, player: Player) void {
     raylib.UpdateMusicStream(engineNoise);
 }
 
-fn drawCrosshair() void {
-    const crosshairSize = 10;
-    const screenWidth = raylib.GetScreenWidth();
-    const screenHeight = raylib.GetScreenHeight();
-    const screenCenterX = @divTrunc(screenWidth, 2);
-    const screenCenterY = @divTrunc(screenHeight, 2);
-    raylib.DrawLine(screenCenterX, screenCenterY + crosshairSize, screenCenterX, screenCenterY - crosshairSize, raylib.WHITE);
-    raylib.DrawLine(screenCenterX + crosshairSize, screenCenterY, screenCenterX - crosshairSize, screenCenterY, raylib.WHITE);
+const Renderer = struct {
+    skybox: Skybox,
+    cubeShader: raylib.Shader,
+    lights: [light.MAX_LIGHTS]light.Light,
+    cubeModels: [cubeCount]raylib.Model,
 
-    // TODO: Should we visualize yaw and pitch changes with a circle?
-    // const mousePosition = raylib.GetMousePosition();
-    // raylib.DrawCircleLinesV(mousePosition, 10, raylib.WHITE);
-}
+    fn init(cubes: [cubeCount]Cube) Renderer {
+        const cubeShader = raylib.LoadShaderFromMemory(@embedFile("shaders/cube.vs"), @embedFile("shaders/cube.fs"));
+        cubeShader.locs[raylib.SHADER_LOC_VECTOR_VIEW] = raylib.GetShaderLocation(cubeShader, "viewPos");
+
+        // Set ambient light level (some basic lighting)
+        const ambientLoc = raylib.GetShaderLocation(cubeShader, "ambient");
+        raylib.SetShaderValue(cubeShader, ambientLoc, &[4]f32{ 0.1, 0.1, 0.1, 1.0 }, raylib.SHADER_UNIFORM_VEC4);
+
+        // TODO: is there a way to avoid undefined?
+        var models: [cubeCount]raylib.Model = undefined;
+        for (cubes, &models) |c, *m| {
+            const mesh = raylib.GenMeshCube(c.size.x, c.size.y, c.size.z);
+            m.* = raylib.LoadModelFromMesh(mesh);
+            m.materials[0].shader = cubeShader;
+        }
+
+        // TODO: Are we copying the models array or is it optimized by the compiler?
+        return Renderer{
+            .cubeShader = cubeShader,
+            .skybox = Skybox.init(),
+            .lights = .{
+                light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = -2, .y = 1, .z = -2 }, raylib.Vector3Zero(), raylib.YELLOW, cubeShader),
+                light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = 2, .y = 1, .z = 2 }, raylib.Vector3Zero(), raylib.RED, cubeShader),
+                light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = -2, .y = 1, .z = 2 }, raylib.Vector3Zero(), raylib.GREEN, cubeShader),
+                light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = 2, .y = 1, .z = -2 }, raylib.Vector3Zero(), raylib.BLUE, cubeShader),
+            },
+            .cubeModels = models,
+        };
+    }
+
+    fn deinit(self: Renderer) void {
+        raylib.UnloadShader(self.cubeShader);
+        self.skybox.deinit();
+        for (self.cubeModels) |m| {
+            raylib.UnloadModel(m);
+        }
+    }
+
+    fn draw(self: Renderer, player: Player, cubes: [cubeCount]Cube) void {
+        raylib.BeginDrawing();
+
+        // Update the shader with the camera view vector (points towards { 0.0, 0.0, 0.0 })
+        const cameraPos = [_]f32{ player.position.x, player.position.y, player.position.z };
+        raylib.SetShaderValue(self.cubeShader, self.cubeShader.locs[raylib.SHADER_LOC_VECTOR_VIEW], &cameraPos, raylib.SHADER_UNIFORM_VEC3);
+
+        const firstPersonCamera = raylib.Camera{
+            .position = player.position,
+            .target = player.lookForwardVector(),
+            .up = player.lookUpVector(),
+            .fovy = 60,
+            .projection = raylib.CAMERA_PERSPECTIVE,
+        };
+
+        raylib.ClearBackground(raylib.BLACK);
+
+        // TODO: Would it be better to be able to pass a view matrix instead of a Camera to BegingMode3D?
+        raylib.BeginMode3D(firstPersonCamera);
+        {
+            self.skybox.draw();
+
+            for (cubes, self.cubeModels) |c, model| {
+                const scale = raylib.Vector3{ .x = 1, .y = 1, .z = 1 };
+                raylib.DrawModelEx(model, c.position, c.rotationAxis, c.rotationAngle, scale, c.color);
+            }
+
+            // Draw spheres to show where the lights are
+            for (self.lights) |l| {
+                if (l.enabled)
+                    raylib.DrawSphereEx(l.position, 0.2, 8, 8, l.color)
+                else
+                    raylib.DrawSphereWires(l.position, 0.2, 8, 8, raylib.ColorAlpha(l.color, 0.3));
+            }
+
+            raylib.DrawGrid(20, 1);
+        }
+        raylib.EndMode3D();
+
+        drawCrosshair();
+        raylib.DrawFPS(10, 10);
+        raylib.DrawText(raylib.TextFormat("Speed: %.1f m/s", player.speed), raylib.GetScreenWidth() - 220, raylib.GetScreenHeight() - 30, 20, raylib.LIME);
+
+        raylib.EndDrawing();
+    }
+
+    fn drawCrosshair() void {
+        const crosshairSize = 10;
+        const screenWidth = raylib.GetScreenWidth();
+        const screenHeight = raylib.GetScreenHeight();
+        const screenCenterX = @divTrunc(screenWidth, 2);
+        const screenCenterY = @divTrunc(screenHeight, 2);
+        raylib.DrawLine(screenCenterX, screenCenterY + crosshairSize, screenCenterX, screenCenterY - crosshairSize, raylib.WHITE);
+        raylib.DrawLine(screenCenterX + crosshairSize, screenCenterY, screenCenterX - crosshairSize, screenCenterY, raylib.WHITE);
+
+        // TODO: Should we visualize yaw and pitch changes with a circle?
+        // const mousePosition = raylib.GetMousePosition();
+        // raylib.DrawCircleLinesV(mousePosition, 10, raylib.WHITE);
+    }
+};
