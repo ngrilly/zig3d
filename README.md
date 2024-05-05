@@ -4,7 +4,7 @@ A repository where I'm playing with Zig, raylib and OpenGL.
 
 ## Build and run from source
 
-Install [Zig](https://ziglang.org/) (tested with Zig 0.12.0-dev.2139+e025ad7b4)
+Install [Zig](https://ziglang.org/) (tested with Zig 0.12.0)
 
 ```
 $ git clone "https://github.com/ngrilly/zig3d.git"
