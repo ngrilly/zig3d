@@ -15,7 +15,7 @@ pub fn rotateX(q: raylib.Quaternion, angle: f32) raylib.Quaternion {
     const bx = std.math.sin(halfAngle);
     const bw = std.math.cos(halfAngle);
 
-    return raylib.Quaternion{
+    return .{
         .x = qx * bw + qw * bx,
         .y = qy * bw + qz * bx,
         .z = qz * bw - qy * bx,
@@ -35,7 +35,7 @@ pub fn rotateY(q: raylib.Quaternion, angle: f32) raylib.Quaternion {
     const by = std.math.sin(halfAngle);
     const bw = std.math.cos(halfAngle);
 
-    return raylib.Quaternion{
+    return .{
         .x = qx * bw - qz * by,
         .y = qy * bw + qw * by,
         .z = qz * bw + qx * by,
@@ -55,7 +55,7 @@ pub fn rotateZ(q: raylib.Quaternion, angle: f32) raylib.Quaternion {
     const bz = std.math.sin(halfAngle);
     const bw = std.math.cos(halfAngle);
 
-    return raylib.Quaternion{
+    return .{
         .x = qx * bw - qy * bz,
         .y = qy * bw + qx * bz,
         .z = qz * bw + qw * bz,

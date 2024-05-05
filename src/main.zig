@@ -205,7 +205,7 @@ const Renderer = struct {
         }
 
         // TODO: Are we copying the models array or is it optimized by the compiler?
-        return Renderer{
+        return .{
             .cubeShader = cubeShader,
             .skybox = Skybox.init(),
             .lights = .{
