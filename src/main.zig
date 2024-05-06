@@ -43,6 +43,7 @@ const Cube = struct {
     // TODO: rename rotationSpeed to angularVelocity?
     rotationSpeed: f32,
     rotationAngle: f32,
+    localToWorldMatrix: raylib.Matrix,
 };
 
 pub fn main() !void {
@@ -85,6 +86,9 @@ pub fn main() !void {
         for (&cubes) |*c| {
             c.position = raylib.Vector3Add(c.position, c.velocity);
             c.rotationAngle = @floatCast(c.rotationSpeed * raylib.GetTime());
+            const matRotation = raylib.MatrixRotate(c.rotationAxis, c.rotationAngle * raylib.DEG2RAD);
+            const matTranslation = raylib.MatrixTranslate(c.position.x, c.position.y, c.position.z);
+            c.localToWorldMatrix = raylib.MatrixMultiply(matRotation, matTranslation);
         }
 
         updateEngineNoise(engineNoise, player);
@@ -249,8 +253,8 @@ const Renderer = struct {
             self.skybox.draw();
 
             for (cubes, self.cubeModels) |c, model| {
-                const scale = raylib.Vector3{ .x = 1, .y = 1, .z = 1 };
-                raylib.DrawModelEx(model, c.position, c.rotationAxis, c.rotationAngle, scale, c.color);
+                model.materials[0].maps[raylib.MATERIAL_MAP_DIFFUSE].color = c.color;
+                raylib.DrawMesh(model.meshes[0], model.materials[0], c.localToWorldMatrix);
             }
 
             // Draw spheres to show where the lights are
