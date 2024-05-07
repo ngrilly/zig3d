@@ -44,6 +44,11 @@ const Cube = struct {
     rotationSpeed: f32,
     rotationAngle: f32,
     localToWorldMatrix: raylib.Matrix,
+    mesh: raylib.Mesh,
+
+    fn deinit(self: Cube) void {
+        raylib.UnloadMesh(self.mesh);
+    }
 };
 
 pub fn main() !void {
@@ -74,9 +79,11 @@ pub fn main() !void {
 
     // TODO: Better to use static or heap if too large for stack allocation? How is it done in TigerBeetle?
     var cubes = createCubes(random);
+    defer for (cubes) |c| {
+        c.deinit();
+    };
 
-    // Pass cubes to Renderer.init to create a raylib model for each cube.
-    const renderer = Renderer.init(cubes);
+    const renderer = Renderer.init();
     defer renderer.deinit();
 
     while (!raylib.WindowShouldClose()) {
@@ -130,6 +137,7 @@ fn createCubes(random: std.rand.Random) [cubeCount]Cube {
         c.color = raylib.BLUE;
         // c.color = raylib.LIME;
         // c.color = raylib.GOLD;
+        c.mesh = raylib.GenMeshCube(c.size.x, c.size.y, c.size.z);
     }
 
     return cubes;
@@ -189,10 +197,10 @@ fn updateEngineNoise(engineNoise: raylib.Music, player: Player) void {
 const Renderer = struct {
     skybox: Skybox,
     cubeShader: raylib.Shader,
+    cubeMaterial: raylib.Material,
     lights: [light.MAX_LIGHTS]light.Light,
-    cubeModels: [cubeCount]raylib.Model,
 
-    fn init(cubes: [cubeCount]Cube) Renderer {
+    fn init() Renderer {
         const cubeShader = raylib.LoadShaderFromMemory(@embedFile("shaders/cube.vs"), @embedFile("shaders/cube.fs"));
         cubeShader.locs[raylib.SHADER_LOC_VECTOR_VIEW] = raylib.GetShaderLocation(cubeShader, "viewPos");
 
@@ -200,17 +208,13 @@ const Renderer = struct {
         const ambientLoc = raylib.GetShaderLocation(cubeShader, "ambient");
         raylib.SetShaderValue(cubeShader, ambientLoc, &[4]f32{ 0.1, 0.1, 0.1, 1.0 }, raylib.SHADER_UNIFORM_VEC4);
 
-        // TODO: is there a way to avoid undefined?
-        var models: [cubeCount]raylib.Model = undefined;
-        for (cubes, &models) |c, *m| {
-            const mesh = raylib.GenMeshCube(c.size.x, c.size.y, c.size.z);
-            m.* = raylib.LoadModelFromMesh(mesh);
-            m.materials[0].shader = cubeShader;
-        }
+        var cubeMaterial = raylib.LoadMaterialDefault();
+        cubeMaterial.shader = cubeShader;
 
         // TODO: Are we copying the models array or is it optimized by the compiler?
         return .{
             .cubeShader = cubeShader,
+            .cubeMaterial = cubeMaterial,
             .skybox = Skybox.init(),
             .lights = .{
                 light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = -2, .y = 1, .z = -2 }, raylib.Vector3Zero(), raylib.YELLOW, cubeShader),
@@ -218,16 +222,14 @@ const Renderer = struct {
                 light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = -2, .y = 1, .z = 2 }, raylib.Vector3Zero(), raylib.GREEN, cubeShader),
                 light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = 2, .y = 1, .z = -2 }, raylib.Vector3Zero(), raylib.BLUE, cubeShader),
             },
-            .cubeModels = models,
         };
     }
 
     fn deinit(self: Renderer) void {
         raylib.UnloadShader(self.cubeShader);
+        // TOOD: Do we need to unload cubeMaterial which is using LoadMaterialDefault()?
+        // raylib.UnloadMaterial(self.cubeMaterial);
         self.skybox.deinit();
-        for (self.cubeModels) |m| {
-            raylib.UnloadModel(m);
-        }
     }
 
     fn draw(self: Renderer, player: Player, cubes: [cubeCount]Cube) void {
@@ -252,9 +254,9 @@ const Renderer = struct {
         {
             self.skybox.draw();
 
-            for (cubes, self.cubeModels) |c, model| {
-                model.materials[0].maps[raylib.MATERIAL_MAP_DIFFUSE].color = c.color;
-                raylib.DrawMesh(model.meshes[0], model.materials[0], c.localToWorldMatrix);
+            for (cubes) |c| {
+                self.cubeMaterial.maps[raylib.MATERIAL_MAP_DIFFUSE].color = c.color;
+                raylib.DrawMesh(c.mesh, self.cubeMaterial, c.localToWorldMatrix);
             }
 
             // Draw spheres to show where the lights are
