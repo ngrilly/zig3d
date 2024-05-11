@@ -45,9 +45,23 @@ const Cube = struct {
     rotationAngle: f32,
     localToWorldMatrix: raylib.Matrix,
     mesh: raylib.Mesh,
+    boundingSphereRadius: f32,
 
     fn deinit(self: Cube) void {
         raylib.UnloadMesh(self.mesh);
+    }
+
+    fn computeBoundingSphere(self: *Cube) void {
+        var maxRadiusSquared: f32 = 0;
+        for (0..@intCast(self.mesh.vertexCount)) |i| {
+            const vertex = raylib.Vector3{
+                .x = self.mesh.vertices[i * 3 + 0],
+                .y = self.mesh.vertices[i * 3 + 1],
+                .z = self.mesh.vertices[i * 3 + 2],
+            };
+            maxRadiusSquared = @max(maxRadiusSquared, raylib.Vector3LengthSqr(vertex));
+        }
+        self.boundingSphereRadius = @sqrt(maxRadiusSquared);
     }
 };
 
@@ -100,9 +114,11 @@ pub fn main() !void {
 
         updateEngineNoise(engineNoise, player);
 
+        const targetedCubeIndex = findTargetedCube(player, cubes);
+
         // TODO: After updating the cube physics, should we have a function updating the raylib models, before drawing,
         // instead of passing `cubes` to draw? Will be necessary if we start adding/removing cubes as the game runs.
-        renderer.draw(player, cubes);
+        renderer.draw(player, cubes, targetedCubeIndex);
     }
 
     raylib.CloseWindow();
@@ -138,9 +154,41 @@ fn createCubes(random: std.rand.Random) [cubeCount]Cube {
         // c.color = raylib.LIME;
         // c.color = raylib.GOLD;
         c.mesh = raylib.GenMeshCube(c.size.x, c.size.y, c.size.z);
+        c.computeBoundingSphere();
     }
 
     return cubes;
+}
+
+fn findTargetedCube(player: Player, cubes: [cubeCount]Cube) ?u32 {
+    const forward = raylib.Vector3{ .x = 0, .y = 0, .z = 1 };
+    const ray = raylib.Ray{
+        .position = player.position,
+        .direction = raylib.Vector3RotateByQuaternion(forward, player.orientation),
+    };
+
+    var hitCubeIndex: ?u32 = null;
+    var hitDistance = std.math.floatMax(f32);
+
+    // TODO: Only test cubes that are close enough?
+    for (cubes, 0..) |c, i| {
+        // Does ray intersect with the cube bounding sphere?
+        const collision = raylib.GetRayCollisionSphere(ray, c.position, c.boundingSphereRadius);
+        if (!collision.hit or collision.distance < 0 or collision.distance > hitDistance) {
+            continue;
+        }
+
+        // Does ray intersect with he cube mesh?
+        const collisionMesh = raylib.GetRayCollisionMesh(ray, c.mesh, c.localToWorldMatrix);
+        if (!collisionMesh.hit or collisionMesh.distance < 0 or collisionMesh.distance > hitDistance) {
+            continue;
+        }
+
+        hitCubeIndex = @intCast(i);
+        hitDistance = collisionMesh.distance;
+    }
+
+    return hitCubeIndex;
 }
 
 fn processInputs(player: *Player) void {
@@ -232,7 +280,7 @@ const Renderer = struct {
         self.skybox.deinit();
     }
 
-    fn draw(self: Renderer, player: Player, cubes: [cubeCount]Cube) void {
+    fn draw(self: Renderer, player: Player, cubes: [cubeCount]Cube, targetedCubeIndex: ?u32) void {
         raylib.BeginDrawing();
 
         // Update the shader with the camera view vector (points towards { 0.0, 0.0, 0.0 })
@@ -257,6 +305,11 @@ const Renderer = struct {
             for (cubes) |c| {
                 self.cubeMaterial.maps[raylib.MATERIAL_MAP_DIFFUSE].color = c.color;
                 raylib.DrawMesh(c.mesh, self.cubeMaterial, c.localToWorldMatrix);
+            }
+
+            if (targetedCubeIndex) |i| {
+                const c = cubes[i];
+                raylib.DrawSphereWires(c.position, c.boundingSphereRadius, 6, 6, raylib.RED);
             }
 
             // Draw spheres to show where the lights are
