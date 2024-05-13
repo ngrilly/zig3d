@@ -71,6 +71,18 @@ const Cube = struct {
         const matTranslation = raylib.MatrixTranslate(self.position.x, self.position.y, self.position.z);
         self.localToWorldMatrix = raylib.MatrixMultiply(matRotation, matTranslation);
     }
+
+    /// Tests if the given ray is intersecting with the cube.
+    fn isTargeted(self: Cube, ray: raylib.Ray) bool {
+        const collisionSphere = raylib.GetRayCollisionSphere(ray, self.position, self.boundingSphereRadius);
+        if (collisionSphere.hit and collisionSphere.distance > 0) {
+            const collisionMesh = raylib.GetRayCollisionMesh(ray, self.mesh, self.localToWorldMatrix);
+            if (collisionMesh.hit and collisionMesh.distance > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
 };
 
 pub fn main() !void {
@@ -178,24 +190,10 @@ fn findTargetedCube(player: Player, cubes: [cubeCount]Cube) ?u32 {
     for (cubes, 0..) |c, i| {
         // If we already have found a cube, then skip the cubes behind.
         const distanceSquared = raylib.Vector3DistanceSqr(player.position, c.position);
-        if (targetDistanceSquared < distanceSquared) {
-            continue;
+        if (distanceSquared < targetDistanceSquared and c.isTargeted(ray)) {
+            targetIndex = @intCast(i);
+            targetDistanceSquared = distanceSquared;
         }
-
-        // Does ray intersect with the cube bounding sphere?
-        const collisionSphere = raylib.GetRayCollisionSphere(ray, c.position, c.boundingSphereRadius);
-        if (!collisionSphere.hit or collisionSphere.distance < 0) {
-            continue;
-        }
-
-        // Does ray intersect with he cube mesh?
-        const collisionMesh = raylib.GetRayCollisionMesh(ray, c.mesh, c.localToWorldMatrix);
-        if (!collisionMesh.hit or collisionMesh.distance < 0) {
-            continue;
-        }
-
-        targetIndex = @intCast(i);
-        targetDistanceSquared = distanceSquared;
     }
 
     return targetIndex;
