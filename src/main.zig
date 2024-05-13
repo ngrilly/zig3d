@@ -63,6 +63,14 @@ const Cube = struct {
         }
         self.boundingSphereRadius = @sqrt(maxRadiusSquared);
     }
+
+    fn update(self: *Cube) void {
+        self.position = raylib.Vector3Add(self.position, self.velocity);
+        self.rotationAngle = @floatCast(self.rotationSpeed * raylib.GetTime());
+        const matRotation = raylib.MatrixRotate(self.rotationAxis, self.rotationAngle * raylib.DEG2RAD);
+        const matTranslation = raylib.MatrixTranslate(self.position.x, self.position.y, self.position.z);
+        self.localToWorldMatrix = raylib.MatrixMultiply(matRotation, matTranslation);
+    }
 };
 
 pub fn main() !void {
@@ -103,13 +111,8 @@ pub fn main() !void {
     while (!raylib.WindowShouldClose()) {
         processInputs(&player);
 
-        // Update physics
         for (&cubes) |*c| {
-            c.position = raylib.Vector3Add(c.position, c.velocity);
-            c.rotationAngle = @floatCast(c.rotationSpeed * raylib.GetTime());
-            const matRotation = raylib.MatrixRotate(c.rotationAxis, c.rotationAngle * raylib.DEG2RAD);
-            const matTranslation = raylib.MatrixTranslate(c.position.x, c.position.y, c.position.z);
-            c.localToWorldMatrix = raylib.MatrixMultiply(matRotation, matTranslation);
+            c.update();
         }
 
         updateEngineNoise(engineNoise, player);
