@@ -105,35 +105,19 @@ pub fn main() !void {
     defer raylib.UnloadMusicStream(engineNoise);
     raylib.PlayMusicStream(engineNoise);
 
-    var player = Player{
-        .position = .{ .x = 0, .y = 2, .z = -15 },
-        .orientation = raylib.QuaternionIdentity(),
-        .speed = 0,
-    };
-
     // TODO: Better to use static or heap if too large for stack allocation? How is it done in TigerBeetle?
-    var cubes = createCubes(random);
-    defer for (cubes) |c| {
-        c.deinit();
-    };
+    var gameState = GameState.init(random);
+    defer gameState.deinit();
 
     const renderer = Renderer.init();
     defer renderer.deinit();
 
     while (!raylib.WindowShouldClose()) {
-        processInputs(&player);
-
-        for (&cubes) |*c| {
-            c.update();
-        }
-
-        updateEngineNoise(engineNoise, player);
-
-        const targetedCubeIndex = findTargetedCube(player, cubes);
-
-        // TODO: After updating the cube physics, should we have a function updating the raylib models, before drawing,
-        // instead of passing `cubes` to draw? Will be necessary if we start adding/removing cubes as the game runs.
-        renderer.draw(player, cubes, targetedCubeIndex);
+        processInputs(&gameState.player);
+        gameState.update();
+        updateEngineNoise(engineNoise, gameState.player);
+        const targetedCubeIndex = gameState.findTargetedCube();
+        renderer.draw(gameState, targetedCubeIndex);
     }
 
     raylib.CloseWindow();
@@ -144,60 +128,88 @@ const cubeFieldDiameter = 500;
 const cubeFieldDepth = 50;
 const cubeMaxRotationSpeed = 30;
 
-/// Creates a field of random cubes.
-fn createCubes(random: std.rand.Random) [cubeCount]Cube {
-    // TODO: Verify that according to Zig Result Location Semantics the cubes are not copied.
+const GameState = struct {
+    player: Player,
+    cubes: [cubeCount]Cube,
 
-    var cubes: [cubeCount]Cube = undefined;
-
-    for (&cubes) |*c| {
-        c.position = .{
-            .x = (random.float(f32) - 0.5) * cubeFieldDiameter,
-            .y = (random.float(f32) - 0.5) * cubeFieldDepth,
-            .z = random.float(f32) * cubeFieldDiameter,
+    fn init(random: std.rand.Random) GameState {
+        return .{
+            .player = Player{
+                .position = .{ .x = 0, .y = 2, .z = -15 },
+                .orientation = raylib.QuaternionIdentity(),
+                .speed = 0,
+            },
+            .cubes = createCubes(random),
         };
-        c.size = .{
-            .x = 1 + random.float(f32) * 3,
-            .y = 1 + random.float(f32) * 3,
-            .z = 1 + random.float(f32) * 3,
-        };
-        c.velocity = .{ .x = 0.0, .y = 0, .z = 0 };
-        c.rotationAxis = .{ .x = random.float(f32), .y = random.float(f32), .z = random.float(f32) };
-        c.rotationSpeed = (2 * random.float(f32) - 1) * cubeMaxRotationSpeed;
-        c.rotationAngle = 0;
-        c.color = raylib.BLUE;
-        // c.color = raylib.LIME;
-        // c.color = raylib.GOLD;
-        c.mesh = raylib.GenMeshCube(c.size.x, c.size.y, c.size.z);
-        c.computeBoundingSphere();
     }
 
-    return cubes;
-}
+    fn deinit(self: GameState) void {
+        defer for (self.cubes) |c| {
+            c.deinit();
+        };
+    }
 
-/// Returns the index of the cube currently in the player's crosshair.
-fn findTargetedCube(player: Player, cubes: [cubeCount]Cube) ?u32 {
-    const forward = raylib.Vector3{ .x = 0, .y = 0, .z = 1 };
-    const ray = raylib.Ray{
-        .position = player.position,
-        .direction = raylib.Vector3RotateByQuaternion(forward, player.orientation),
-    };
+    /// Creates a field of random cubes.
+    fn createCubes(random: std.rand.Random) [cubeCount]Cube {
+        // TODO: Verify that according to Zig Result Location Semantics the cubes are not copied.
 
-    var targetIndex: ?u32 = null;
-    var targetDistanceSquared = std.math.floatMax(f32);
+        var cubes: [cubeCount]Cube = undefined;
 
-    // TODO: Only test cubes that are close enough?
-    for (cubes, 0..) |c, i| {
-        // If we already have found a cube, then skip the cubes behind.
-        const distanceSquared = raylib.Vector3DistanceSqr(player.position, c.position);
-        if (distanceSquared < targetDistanceSquared and c.isTargeted(ray)) {
-            targetIndex = @intCast(i);
-            targetDistanceSquared = distanceSquared;
+        for (&cubes) |*c| {
+            c.position = .{
+                .x = (random.float(f32) - 0.5) * cubeFieldDiameter,
+                .y = (random.float(f32) - 0.5) * cubeFieldDepth,
+                .z = random.float(f32) * cubeFieldDiameter,
+            };
+            c.size = .{
+                .x = 1 + random.float(f32) * 3,
+                .y = 1 + random.float(f32) * 3,
+                .z = 1 + random.float(f32) * 3,
+            };
+            c.velocity = .{ .x = 0.0, .y = 0, .z = 0 };
+            c.rotationAxis = .{ .x = random.float(f32), .y = random.float(f32), .z = random.float(f32) };
+            c.rotationSpeed = (2 * random.float(f32) - 1) * cubeMaxRotationSpeed;
+            c.rotationAngle = 0;
+            c.color = raylib.BLUE;
+            // c.color = raylib.LIME;
+            // c.color = raylib.GOLD;
+            c.mesh = raylib.GenMeshCube(c.size.x, c.size.y, c.size.z);
+            c.computeBoundingSphere();
+        }
+
+        return cubes;
+    }
+
+    fn update(self: *GameState) void {
+        for (&self.cubes) |*c| {
+            c.update();
         }
     }
 
-    return targetIndex;
-}
+    /// Returns the index of the cube currently in the player's crosshair.
+    fn findTargetedCube(self: GameState) ?u32 {
+        const forward = raylib.Vector3{ .x = 0, .y = 0, .z = 1 };
+        const ray = raylib.Ray{
+            .position = self.player.position,
+            .direction = raylib.Vector3RotateByQuaternion(forward, self.player.orientation),
+        };
+
+        var targetIndex: ?u32 = null;
+        var targetDistanceSquared = std.math.floatMax(f32);
+
+        // TODO: Only test cubes that are close enough?
+        for (self.cubes, 0..) |c, i| {
+            // If we already have found a cube, then skip the cubes behind.
+            const distanceSquared = raylib.Vector3DistanceSqr(self.player.position, c.position);
+            if (distanceSquared < targetDistanceSquared and c.isTargeted(ray)) {
+                targetIndex = @intCast(i);
+                targetDistanceSquared = distanceSquared;
+            }
+        }
+
+        return targetIndex;
+    }
+};
 
 fn processInputs(player: *Player) void {
     const frameTime = raylib.GetFrameTime();
@@ -288,7 +300,9 @@ const Renderer = struct {
         self.skybox.deinit();
     }
 
-    fn draw(self: Renderer, player: Player, cubes: [cubeCount]Cube, targetedCubeIndex: ?u32) void {
+    fn draw(self: Renderer, gameState: GameState, targetedCubeIndex: ?u32) void {
+        const player = gameState.player;
+
         raylib.BeginDrawing();
 
         // Update the shader with the camera view vector (points towards { 0.0, 0.0, 0.0 })
@@ -310,13 +324,13 @@ const Renderer = struct {
         {
             self.skybox.draw();
 
-            for (cubes) |c| {
+            for (gameState.cubes) |c| {
                 self.cubeMaterial.maps[raylib.MATERIAL_MAP_DIFFUSE].color = c.color;
                 raylib.DrawMesh(c.mesh, self.cubeMaterial, c.localToWorldMatrix);
             }
 
             if (targetedCubeIndex) |i| {
-                const c = cubes[i];
+                const c = gameState.cubes[i];
                 raylib.DrawSphereWires(c.position, c.boundingSphereRadius, 6, 6, raylib.RED);
             }
 
