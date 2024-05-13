@@ -163,6 +163,7 @@ fn createCubes(random: std.rand.Random) [cubeCount]Cube {
     return cubes;
 }
 
+/// Returns the index of the cube currently in the player's crosshair.
 fn findTargetedCube(player: Player, cubes: [cubeCount]Cube) ?u32 {
     const forward = raylib.Vector3{ .x = 0, .y = 0, .z = 1 };
     const ray = raylib.Ray{
@@ -170,28 +171,34 @@ fn findTargetedCube(player: Player, cubes: [cubeCount]Cube) ?u32 {
         .direction = raylib.Vector3RotateByQuaternion(forward, player.orientation),
     };
 
-    var hitCubeIndex: ?u32 = null;
-    var hitDistance = std.math.floatMax(f32);
+    var targetIndex: ?u32 = null;
+    var targetDistanceSquared = std.math.floatMax(f32);
 
     // TODO: Only test cubes that are close enough?
     for (cubes, 0..) |c, i| {
+        // If we already have found a cube, then skip the cubes behind.
+        const distanceSquared = raylib.Vector3DistanceSqr(player.position, c.position);
+        if (targetDistanceSquared < distanceSquared) {
+            continue;
+        }
+
         // Does ray intersect with the cube bounding sphere?
-        const collision = raylib.GetRayCollisionSphere(ray, c.position, c.boundingSphereRadius);
-        if (!collision.hit or collision.distance < 0 or collision.distance > hitDistance) {
+        const collisionSphere = raylib.GetRayCollisionSphere(ray, c.position, c.boundingSphereRadius);
+        if (!collisionSphere.hit or collisionSphere.distance < 0) {
             continue;
         }
 
         // Does ray intersect with he cube mesh?
         const collisionMesh = raylib.GetRayCollisionMesh(ray, c.mesh, c.localToWorldMatrix);
-        if (!collisionMesh.hit or collisionMesh.distance < 0 or collisionMesh.distance > hitDistance) {
+        if (!collisionMesh.hit or collisionMesh.distance < 0) {
             continue;
         }
 
-        hitCubeIndex = @intCast(i);
-        hitDistance = collisionMesh.distance;
+        targetIndex = @intCast(i);
+        targetDistanceSquared = distanceSquared;
     }
 
-    return hitCubeIndex;
+    return targetIndex;
 }
 
 fn processInputs(player: *Player) void {
