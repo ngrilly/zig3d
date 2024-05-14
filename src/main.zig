@@ -116,8 +116,10 @@ pub fn main() !void {
     const random = prng.random();
 
     raylib.SetConfigFlags(raylib.FLAG_WINDOW_RESIZABLE);
-    raylib.InitWindow(init_screen_width, init_screen_height, "Zig 3D");
     raylib.SetExitKey(raylib.KEY_NULL);
+
+    raylib.InitWindow(init_screen_width, init_screen_height, "Zig 3D");
+    defer raylib.CloseWindow();
 
     raylib.SetTargetFPS(60);
 
@@ -142,8 +144,6 @@ pub fn main() !void {
         const targeted_cube_index = game_state.findTargetedCube();
         renderer.draw(game_state, targeted_cube_index);
     }
-
-    raylib.CloseWindow();
 }
 
 const cube_count = 1000;
