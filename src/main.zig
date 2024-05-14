@@ -19,6 +19,7 @@ const Player = struct {
     speed: f32 = 0,
     targetSpeed: f32 = 0,
     speedStop: bool = false, // TODO: find a better name
+    accelerationMagnitude: f32 = 0,
 
     fn move(self: *Player, x: f32, y: f32, z: f32) void {
         const localMovement = raylib.Vector3{ .x = x, .y = y, .z = z };
@@ -39,8 +40,12 @@ const Player = struct {
     fn update(self: *Player) void {
         // When the ship changes direction, acceleration is required both toward the new direction and away from the current direction.
         const targetVelocity = raylib.Vector3RotateByQuaternion(.{ .x = 0, .y = 0, .z = self.targetSpeed }, self.orientation);
-        const targetAcceleration = raylib.Vector3Lerp(targetVelocity, raylib.Vector3Negate(self.velocity), 0.5);
-        const acceleration = raylib.Vector3ClampValue(targetAcceleration, 0, maxAcceleration);
+        var acceleration = raylib.Vector3Lerp(targetVelocity, raylib.Vector3Negate(self.velocity), 0.5);
+        self.accelerationMagnitude = raylib.Vector3Length(acceleration);
+        if (self.accelerationMagnitude > maxAcceleration) {
+            acceleration = raylib.Vector3Scale(acceleration, maxAcceleration / self.accelerationMagnitude);
+            self.accelerationMagnitude = maxAcceleration;
+        }
 
         // TODO: GetFrameTime also called in processInputs: share?
         const frameTime = raylib.GetFrameTime();
@@ -275,7 +280,7 @@ fn processInputs(player: *Player) void {
 }
 
 fn updateEngineNoise(engineNoise: raylib.Music, player: Player) void {
-    const engineVolume = @abs(player.targetSpeed) / maxSpeed;
+    const engineVolume = @abs(player.accelerationMagnitude) / Player.maxAcceleration;
     raylib.SetMusicVolume(engineNoise, engineVolume);
     raylib.UpdateMusicStream(engineNoise);
 }
