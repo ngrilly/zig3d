@@ -11,9 +11,13 @@ const speedSensitivity = 5;
 const strafeSpeed = 5;
 
 const Player = struct {
+    const maxAcceleration = 5;
+
     position: raylib.Vector3,
+    velocity: raylib.Vector3 = raylib.Vector3Zero(),
     orientation: raylib.Quaternion,
-    speed: f32,
+    speed: f32 = 0,
+    targetSpeed: f32 = 0,
     speedStop: bool = false, // TODO: find a better name
 
     fn move(self: *Player, x: f32, y: f32, z: f32) void {
@@ -30,6 +34,20 @@ const Player = struct {
     fn lookUpVector(self: Player) raylib.Vector3 {
         const up = raylib.Vector3{ .x = 0, .y = 1, .z = 0 };
         return raylib.Vector3RotateByQuaternion(up, self.orientation);
+    }
+
+    fn update(self: *Player) void {
+        // When the ship changes direction, acceleration is required both toward the new direction and away from the current direction.
+        const targetVelocity = raylib.Vector3RotateByQuaternion(.{ .x = 0, .y = 0, .z = self.targetSpeed }, self.orientation);
+        const targetAcceleration = raylib.Vector3Lerp(targetVelocity, raylib.Vector3Negate(self.velocity), 0.5);
+        const acceleration = raylib.Vector3ClampValue(targetAcceleration, 0, maxAcceleration);
+
+        // TODO: GetFrameTime also called in processInputs: share?
+        const frameTime = raylib.GetFrameTime();
+        self.velocity = raylib.Vector3Add(self.velocity, raylib.Vector3Scale(acceleration, frameTime));
+        self.position = raylib.Vector3Add(self.position, raylib.Vector3Scale(self.velocity, frameTime));
+
+        self.speed = raylib.Vector3Length(self.velocity);
     }
 };
 
@@ -137,7 +155,6 @@ const GameState = struct {
             .player = Player{
                 .position = .{ .x = 0, .y = 2, .z = -15 },
                 .orientation = raylib.QuaternionIdentity(),
-                .speed = 0,
             },
             .cubes = createCubes(random),
         };
@@ -181,6 +198,8 @@ const GameState = struct {
     }
 
     fn update(self: *GameState) void {
+        self.player.update();
+
         for (&self.cubes) |*c| {
             c.update();
         }
@@ -221,15 +240,15 @@ fn processInputs(player: *Player) void {
     if (raylib.IsKeyPressed(raylib.KEY_ESCAPE))
         raylib.EnableCursor();
 
-    if (raylib.IsKeyDown(raylib.KEY_W) and player.speed < maxSpeed)
-        player.speed += speedSensitivity * frameTime;
+    if (raylib.IsKeyDown(raylib.KEY_W) and player.targetSpeed < maxSpeed)
+        player.targetSpeed += speedSensitivity * frameTime;
 
-    if (raylib.IsKeyDown(raylib.KEY_S) and player.speed > minSpeed and !player.speedStop) {
-        const previousSpeed = player.speed;
-        player.speed -= speedSensitivity * frameTime;
+    if (raylib.IsKeyDown(raylib.KEY_S) and player.targetSpeed > minSpeed and !player.speedStop) {
+        const previousSpeed = player.targetSpeed;
+        player.targetSpeed -= speedSensitivity * frameTime;
         // Player needs to release the key and press it again to reverse engine
-        if (previousSpeed > 0 and player.speed <= 0) {
-            player.speed = 0;
+        if (previousSpeed > 0 and player.targetSpeed <= 0) {
+            player.targetSpeed = 0;
             player.speedStop = true;
         }
     }
@@ -252,12 +271,11 @@ fn processInputs(player: *Player) void {
         player.orientation = quaternion.rotateX(player.orientation, mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY);
         player.orientation = quaternion.rotateY(player.orientation, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY);
         // TODO: renormalize orientation to not accumulate errors?
-        player.move(0, 0, player.speed * frameTime);
     }
 }
 
 fn updateEngineNoise(engineNoise: raylib.Music, player: Player) void {
-    const engineVolume = @abs(player.speed) / maxSpeed;
+    const engineVolume = @abs(player.targetSpeed) / maxSpeed;
     raylib.SetMusicVolume(engineNoise, engineVolume);
     raylib.UpdateMusicStream(engineNoise);
 }
@@ -348,7 +366,7 @@ const Renderer = struct {
 
         drawCrosshair();
         raylib.DrawFPS(10, 10);
-        raylib.DrawText(raylib.TextFormat("Speed: %.1f m/s", player.speed), raylib.GetScreenWidth() - 220, raylib.GetScreenHeight() - 30, 20, raylib.LIME);
+        raylib.DrawText(raylib.TextFormat("Speed: %.1f / %.1f m/s", player.speed, player.targetSpeed), raylib.GetScreenWidth() - 250, raylib.GetScreenHeight() - 30, 20, raylib.LIME);
 
         raylib.EndDrawing();
     }
