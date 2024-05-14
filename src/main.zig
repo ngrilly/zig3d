@@ -5,26 +5,26 @@ const light = @import("light.zig");
 const Skybox = @import("Skybox.zig");
 
 // Speeds in m/s
-const minSpeed = -50;
-const maxSpeed = 50;
-const speedSensitivity = 5;
-const strafeSpeed = 5;
+const min_speed = -50;
+const max_speed = 50;
+const speed_sensitivity = 5;
+const strafe_speed = 5;
 
 const Player = struct {
-    const maxAcceleration = 5;
+    const max_acceleration = 5;
 
     position: raylib.Vector3,
     velocity: raylib.Vector3 = raylib.Vector3Zero(),
     orientation: raylib.Quaternion,
     speed: f32 = 0,
-    targetSpeed: f32 = 0,
-    speedStop: bool = false, // TODO: find a better name
-    accelerationMagnitude: f32 = 0,
+    target_speed: f32 = 0,
+    speed_stop: bool = false, // TODO: find a better name
+    acceleration_magnitude: f32 = 0,
 
     fn move(self: *Player, x: f32, y: f32, z: f32) void {
-        const localMovement = raylib.Vector3{ .x = x, .y = y, .z = z };
-        const worldMovement = raylib.Vector3RotateByQuaternion(localMovement, self.orientation);
-        self.position = raylib.Vector3Add(self.position, worldMovement);
+        const local_movement = raylib.Vector3{ .x = x, .y = y, .z = z };
+        const world_movement = raylib.Vector3RotateByQuaternion(local_movement, self.orientation);
+        self.position = raylib.Vector3Add(self.position, world_movement);
     }
 
     fn lookForwardVector(self: Player) raylib.Vector3 {
@@ -39,18 +39,18 @@ const Player = struct {
 
     fn update(self: *Player) void {
         // When the ship changes direction, acceleration is required both toward the new direction and away from the current direction.
-        const targetVelocity = raylib.Vector3RotateByQuaternion(.{ .x = 0, .y = 0, .z = self.targetSpeed }, self.orientation);
-        var acceleration = raylib.Vector3Lerp(targetVelocity, raylib.Vector3Negate(self.velocity), 0.5);
-        self.accelerationMagnitude = raylib.Vector3Length(acceleration);
-        if (self.accelerationMagnitude > maxAcceleration) {
-            acceleration = raylib.Vector3Scale(acceleration, maxAcceleration / self.accelerationMagnitude);
-            self.accelerationMagnitude = maxAcceleration;
+        const target_velocity = raylib.Vector3RotateByQuaternion(.{ .x = 0, .y = 0, .z = self.target_speed }, self.orientation);
+        var acceleration = raylib.Vector3Lerp(target_velocity, raylib.Vector3Negate(self.velocity), 0.5);
+        self.acceleration_magnitude = raylib.Vector3Length(acceleration);
+        if (self.acceleration_magnitude > max_acceleration) {
+            acceleration = raylib.Vector3Scale(acceleration, max_acceleration / self.acceleration_magnitude);
+            self.acceleration_magnitude = max_acceleration;
         }
 
         // TODO: GetFrameTime also called in processInputs: share?
-        const frameTime = raylib.GetFrameTime();
-        self.velocity = raylib.Vector3Add(self.velocity, raylib.Vector3Scale(acceleration, frameTime));
-        self.position = raylib.Vector3Add(self.position, raylib.Vector3Scale(self.velocity, frameTime));
+        const frame_time = raylib.GetFrameTime();
+        self.velocity = raylib.Vector3Add(self.velocity, raylib.Vector3Scale(acceleration, frame_time));
+        self.position = raylib.Vector3Add(self.position, raylib.Vector3Scale(self.velocity, frame_time));
 
         self.speed = raylib.Vector3Length(self.velocity);
     }
@@ -61,46 +61,46 @@ const Cube = struct {
     size: raylib.Vector3,
     color: raylib.Color,
     velocity: raylib.Vector3,
-    // TODO: rename rotationAxis to orientation?
-    rotationAxis: raylib.Vector3 = .{ .x = 0, .y = 0, .z = 0 },
-    // TODO: rename rotationSpeed to angularVelocity?
-    rotationSpeed: f32,
-    rotationAngle: f32,
-    localToWorldMatrix: raylib.Matrix,
+    // TODO: rename rotation_axis to orientation?
+    rotation_axis: raylib.Vector3 = .{ .x = 0, .y = 0, .z = 0 },
+    // TODO: rename rotation_speed to angular_velocity?
+    rotation_speed: f32,
+    rotation_angle: f32,
+    local_to_world_matrix: raylib.Matrix,
     mesh: raylib.Mesh,
-    boundingSphereRadius: f32,
+    bounding_sphere_radius: f32,
 
     fn deinit(self: Cube) void {
         raylib.UnloadMesh(self.mesh);
     }
 
     fn computeBoundingSphere(self: *Cube) void {
-        var maxRadiusSquared: f32 = 0;
+        var max_radius_squared: f32 = 0;
         for (0..@intCast(self.mesh.vertexCount)) |i| {
             const vertex = raylib.Vector3{
                 .x = self.mesh.vertices[i * 3 + 0],
                 .y = self.mesh.vertices[i * 3 + 1],
                 .z = self.mesh.vertices[i * 3 + 2],
             };
-            maxRadiusSquared = @max(maxRadiusSquared, raylib.Vector3LengthSqr(vertex));
+            max_radius_squared = @max(max_radius_squared, raylib.Vector3LengthSqr(vertex));
         }
-        self.boundingSphereRadius = @sqrt(maxRadiusSquared);
+        self.bounding_sphere_radius = @sqrt(max_radius_squared);
     }
 
     fn update(self: *Cube) void {
         self.position = raylib.Vector3Add(self.position, self.velocity);
-        self.rotationAngle = @floatCast(self.rotationSpeed * raylib.GetTime());
-        const matRotation = raylib.MatrixRotate(self.rotationAxis, self.rotationAngle * raylib.DEG2RAD);
-        const matTranslation = raylib.MatrixTranslate(self.position.x, self.position.y, self.position.z);
-        self.localToWorldMatrix = raylib.MatrixMultiply(matRotation, matTranslation);
+        self.rotation_angle = @floatCast(self.rotation_speed * raylib.GetTime());
+        const mat_rotation = raylib.MatrixRotate(self.rotation_axis, self.rotation_angle * raylib.DEG2RAD);
+        const mat_translation = raylib.MatrixTranslate(self.position.x, self.position.y, self.position.z);
+        self.local_to_world_matrix = raylib.MatrixMultiply(mat_rotation, mat_translation);
     }
 
     /// Tests if the given ray is intersecting with the cube.
     fn isTargeted(self: Cube, ray: raylib.Ray) bool {
-        const collisionSphere = raylib.GetRayCollisionSphere(ray, self.position, self.boundingSphereRadius);
-        if (collisionSphere.hit and collisionSphere.distance > 0) {
-            const collisionMesh = raylib.GetRayCollisionMesh(ray, self.mesh, self.localToWorldMatrix);
-            if (collisionMesh.hit and collisionMesh.distance > 0) {
+        const collision_sphere = raylib.GetRayCollisionSphere(ray, self.position, self.bounding_sphere_radius);
+        if (collision_sphere.hit and collision_sphere.distance > 0) {
+            const collision_mesh = raylib.GetRayCollisionMesh(ray, self.mesh, self.local_to_world_matrix);
+            if (collision_mesh.hit and collision_mesh.distance > 0) {
                 return true;
             }
         }
@@ -109,14 +109,14 @@ const Cube = struct {
 };
 
 pub fn main() !void {
-    const initScreenWidth = 800;
-    const initScreenHeight = 450;
+    const init_screen_width = 800;
+    const init_screen_height = 450;
 
     var prng = std.rand.DefaultPrng.init(0);
     const random = prng.random();
 
     raylib.SetConfigFlags(raylib.FLAG_WINDOW_RESIZABLE);
-    raylib.InitWindow(initScreenWidth, initScreenHeight, "Zig 3D");
+    raylib.InitWindow(init_screen_width, init_screen_height, "Zig 3D");
     raylib.SetExitKey(raylib.KEY_NULL);
 
     raylib.SetTargetFPS(60);
@@ -124,36 +124,36 @@ pub fn main() !void {
     raylib.InitAudioDevice();
     defer raylib.CloseAudioDevice();
     // We use a music stream because it offers looping, unlike a sound.
-    const engineNoise = raylib.LoadMusicStream("resources/371282__nexotron__spaceship-engine-just-noise-normalized.wav");
-    defer raylib.UnloadMusicStream(engineNoise);
-    raylib.PlayMusicStream(engineNoise);
+    const engine_noise = raylib.LoadMusicStream("resources/371282__nexotron__spaceship-engine-just-noise-normalized.wav");
+    defer raylib.UnloadMusicStream(engine_noise);
+    raylib.PlayMusicStream(engine_noise);
 
     // TODO: Better to use static or heap if too large for stack allocation? How is it done in TigerBeetle?
-    var gameState = GameState.init(random);
-    defer gameState.deinit();
+    var game_state = GameState.init(random);
+    defer game_state.deinit();
 
     const renderer = Renderer.init();
     defer renderer.deinit();
 
     while (!raylib.WindowShouldClose()) {
-        processInputs(&gameState.player);
-        gameState.update();
-        updateEngineNoise(engineNoise, gameState.player);
-        const targetedCubeIndex = gameState.findTargetedCube();
-        renderer.draw(gameState, targetedCubeIndex);
+        processInputs(&game_state.player);
+        game_state.update();
+        updateEngineNoise(engine_noise, game_state.player);
+        const targeted_cube_index = game_state.findTargetedCube();
+        renderer.draw(game_state, targeted_cube_index);
     }
 
     raylib.CloseWindow();
 }
 
-const cubeCount = 1000;
-const cubeFieldDiameter = 500;
-const cubeFieldDepth = 50;
-const cubeMaxRotationSpeed = 30;
+const cube_count = 1000;
+const cube_field_diameter = 500;
+const cube_field_depth = 50;
+const cube_max_rotation_speed = 30;
 
 const GameState = struct {
     player: Player,
-    cubes: [cubeCount]Cube,
+    cubes: [cube_count]Cube,
 
     fn init(random: std.rand.Random) GameState {
         return .{
@@ -172,16 +172,16 @@ const GameState = struct {
     }
 
     /// Creates a field of random cubes.
-    fn createCubes(random: std.rand.Random) [cubeCount]Cube {
+    fn createCubes(random: std.rand.Random) [cube_count]Cube {
         // TODO: Verify that according to Zig Result Location Semantics the cubes are not copied.
 
-        var cubes: [cubeCount]Cube = undefined;
+        var cubes: [cube_count]Cube = undefined;
 
         for (&cubes) |*c| {
             c.position = .{
-                .x = (random.float(f32) - 0.5) * cubeFieldDiameter,
-                .y = (random.float(f32) - 0.5) * cubeFieldDepth,
-                .z = random.float(f32) * cubeFieldDiameter,
+                .x = (random.float(f32) - 0.5) * cube_field_diameter,
+                .y = (random.float(f32) - 0.5) * cube_field_depth,
+                .z = random.float(f32) * cube_field_diameter,
             };
             c.size = .{
                 .x = 1 + random.float(f32) * 3,
@@ -189,9 +189,9 @@ const GameState = struct {
                 .z = 1 + random.float(f32) * 3,
             };
             c.velocity = .{ .x = 0.0, .y = 0, .z = 0 };
-            c.rotationAxis = .{ .x = random.float(f32), .y = random.float(f32), .z = random.float(f32) };
-            c.rotationSpeed = (2 * random.float(f32) - 1) * cubeMaxRotationSpeed;
-            c.rotationAngle = 0;
+            c.rotation_axis = .{ .x = random.float(f32), .y = random.float(f32), .z = random.float(f32) };
+            c.rotation_speed = (2 * random.float(f32) - 1) * cube_max_rotation_speed;
+            c.rotation_angle = 0;
             c.color = raylib.BLUE;
             // c.color = raylib.LIME;
             // c.color = raylib.GOLD;
@@ -218,25 +218,25 @@ const GameState = struct {
             .direction = raylib.Vector3RotateByQuaternion(forward, self.player.orientation),
         };
 
-        var targetIndex: ?u32 = null;
-        var targetDistanceSquared = std.math.floatMax(f32);
+        var target_index: ?u32 = null;
+        var target_distance_squared = std.math.floatMax(f32);
 
         // TODO: Only test cubes that are close enough?
         for (self.cubes, 0..) |c, i| {
             // If we already have found a cube, then skip the cubes behind.
-            const distanceSquared = raylib.Vector3DistanceSqr(self.player.position, c.position);
-            if (distanceSquared < targetDistanceSquared and c.isTargeted(ray)) {
-                targetIndex = @intCast(i);
-                targetDistanceSquared = distanceSquared;
+            const distance_squared = raylib.Vector3DistanceSqr(self.player.position, c.position);
+            if (distance_squared < target_distance_squared and c.isTargeted(ray)) {
+                target_index = @intCast(i);
+                target_distance_squared = distance_squared;
             }
         }
 
-        return targetIndex;
+        return target_index;
     }
 };
 
 fn processInputs(player: *Player) void {
-    const frameTime = raylib.GetFrameTime();
+    const frame_time = raylib.GetFrameTime();
 
     // TODO: support non-QWERTY keyboard?
     if (raylib.IsMouseButtonPressed(raylib.MOUSE_BUTTON_LEFT))
@@ -245,94 +245,94 @@ fn processInputs(player: *Player) void {
     if (raylib.IsKeyPressed(raylib.KEY_ESCAPE))
         raylib.EnableCursor();
 
-    if (raylib.IsKeyDown(raylib.KEY_W) and player.targetSpeed < maxSpeed)
-        player.targetSpeed += speedSensitivity * frameTime;
+    if (raylib.IsKeyDown(raylib.KEY_W) and player.target_speed < max_speed)
+        player.target_speed += speed_sensitivity * frame_time;
 
-    if (raylib.IsKeyDown(raylib.KEY_S) and player.targetSpeed > minSpeed and !player.speedStop) {
-        const previousSpeed = player.targetSpeed;
-        player.targetSpeed -= speedSensitivity * frameTime;
+    if (raylib.IsKeyDown(raylib.KEY_S) and player.target_speed > min_speed and !player.speed_stop) {
+        const previous_speed = player.target_speed;
+        player.target_speed -= speed_sensitivity * frame_time;
         // Player needs to release the key and press it again to reverse engine
-        if (previousSpeed > 0 and player.targetSpeed <= 0) {
-            player.targetSpeed = 0;
-            player.speedStop = true;
+        if (previous_speed > 0 and player.target_speed <= 0) {
+            player.target_speed = 0;
+            player.speed_stop = true;
         }
     }
 
     if (raylib.IsKeyReleased(raylib.KEY_S))
-        player.speedStop = false;
+        player.speed_stop = false;
 
     // TODO: Make strafe control realistic (simulate thrusters)
     if (raylib.IsKeyDown(raylib.KEY_A)) {
-        player.move(strafeSpeed * frameTime, 0, 0);
+        player.move(strafe_speed * frame_time, 0, 0);
     }
 
     if (raylib.IsKeyDown(raylib.KEY_D)) {
-        player.move(-strafeSpeed * frameTime, 0, 0);
+        player.move(-strafe_speed * frame_time, 0, 0);
     }
 
     if (raylib.IsCursorHidden()) {
         const CAMERA_MOUSE_MOVE_SENSITIVITY = 0.005;
-        const mousePositionDelta = raylib.GetMouseDelta();
-        player.orientation = quaternion.rotateX(player.orientation, mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY);
-        player.orientation = quaternion.rotateY(player.orientation, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY);
+        const mouse_position_delta = raylib.GetMouseDelta();
+        player.orientation = quaternion.rotateX(player.orientation, mouse_position_delta.y * CAMERA_MOUSE_MOVE_SENSITIVITY);
+        player.orientation = quaternion.rotateY(player.orientation, -mouse_position_delta.x * CAMERA_MOUSE_MOVE_SENSITIVITY);
         // TODO: renormalize orientation to not accumulate errors?
     }
 }
 
 fn updateEngineNoise(engineNoise: raylib.Music, player: Player) void {
-    const engineVolume = @abs(player.accelerationMagnitude) / Player.maxAcceleration;
-    raylib.SetMusicVolume(engineNoise, engineVolume);
+    const engine_volume = @abs(player.acceleration_magnitude) / Player.max_acceleration;
+    raylib.SetMusicVolume(engineNoise, engine_volume);
     raylib.UpdateMusicStream(engineNoise);
 }
 
 const Renderer = struct {
     skybox: Skybox,
-    cubeShader: raylib.Shader,
-    cubeMaterial: raylib.Material,
+    cube_shader: raylib.Shader,
+    cube_material: raylib.Material,
     lights: [light.MAX_LIGHTS]light.Light,
 
     fn init() Renderer {
-        const cubeShader = raylib.LoadShaderFromMemory(@embedFile("shaders/cube.vs"), @embedFile("shaders/cube.fs"));
-        cubeShader.locs[raylib.SHADER_LOC_VECTOR_VIEW] = raylib.GetShaderLocation(cubeShader, "viewPos");
+        const cube_shader = raylib.LoadShaderFromMemory(@embedFile("shaders/cube.vs"), @embedFile("shaders/cube.fs"));
+        cube_shader.locs[raylib.SHADER_LOC_VECTOR_VIEW] = raylib.GetShaderLocation(cube_shader, "viewPos");
 
         // Set ambient light level (some basic lighting)
-        const ambientLoc = raylib.GetShaderLocation(cubeShader, "ambient");
-        raylib.SetShaderValue(cubeShader, ambientLoc, &[4]f32{ 0.1, 0.1, 0.1, 1.0 }, raylib.SHADER_UNIFORM_VEC4);
+        const ambient_loc = raylib.GetShaderLocation(cube_shader, "ambient");
+        raylib.SetShaderValue(cube_shader, ambient_loc, &[4]f32{ 0.1, 0.1, 0.1, 1.0 }, raylib.SHADER_UNIFORM_VEC4);
 
-        var cubeMaterial = raylib.LoadMaterialDefault();
-        cubeMaterial.shader = cubeShader;
+        var cube_material = raylib.LoadMaterialDefault();
+        cube_material.shader = cube_shader;
 
         // TODO: Are we copying the models array or is it optimized by the compiler?
         return .{
-            .cubeShader = cubeShader,
-            .cubeMaterial = cubeMaterial,
+            .cube_shader = cube_shader,
+            .cube_material = cube_material,
             .skybox = Skybox.init(),
             .lights = .{
-                light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = -2, .y = 1, .z = -2 }, raylib.Vector3Zero(), raylib.YELLOW, cubeShader),
-                light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = 2, .y = 1, .z = 2 }, raylib.Vector3Zero(), raylib.RED, cubeShader),
-                light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = -2, .y = 1, .z = 2 }, raylib.Vector3Zero(), raylib.GREEN, cubeShader),
-                light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = 2, .y = 1, .z = -2 }, raylib.Vector3Zero(), raylib.BLUE, cubeShader),
+                light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = -2, .y = 1, .z = -2 }, raylib.Vector3Zero(), raylib.YELLOW, cube_shader),
+                light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = 2, .y = 1, .z = 2 }, raylib.Vector3Zero(), raylib.RED, cube_shader),
+                light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = -2, .y = 1, .z = 2 }, raylib.Vector3Zero(), raylib.GREEN, cube_shader),
+                light.CreateLight(light.LightType.LIGHT_POINT, raylib.Vector3{ .x = 2, .y = 1, .z = -2 }, raylib.Vector3Zero(), raylib.BLUE, cube_shader),
             },
         };
     }
 
     fn deinit(self: Renderer) void {
-        raylib.UnloadShader(self.cubeShader);
+        raylib.UnloadShader(self.cube_shader);
         // TOOD: Do we need to unload cubeMaterial which is using LoadMaterialDefault()?
         // raylib.UnloadMaterial(self.cubeMaterial);
         self.skybox.deinit();
     }
 
-    fn draw(self: Renderer, gameState: GameState, targetedCubeIndex: ?u32) void {
-        const player = gameState.player;
+    fn draw(self: Renderer, game_state: GameState, targeted_cube_index: ?u32) void {
+        const player = game_state.player;
 
         raylib.BeginDrawing();
 
         // Update the shader with the camera view vector (points towards { 0.0, 0.0, 0.0 })
-        const cameraPos = [_]f32{ player.position.x, player.position.y, player.position.z };
-        raylib.SetShaderValue(self.cubeShader, self.cubeShader.locs[raylib.SHADER_LOC_VECTOR_VIEW], &cameraPos, raylib.SHADER_UNIFORM_VEC3);
+        const camera_pos = [_]f32{ player.position.x, player.position.y, player.position.z };
+        raylib.SetShaderValue(self.cube_shader, self.cube_shader.locs[raylib.SHADER_LOC_VECTOR_VIEW], &camera_pos, raylib.SHADER_UNIFORM_VEC3);
 
-        const firstPersonCamera = raylib.Camera{
+        const first_person_camera = raylib.Camera{
             .position = player.position,
             .target = player.lookForwardVector(),
             .up = player.lookUpVector(),
@@ -343,18 +343,18 @@ const Renderer = struct {
         raylib.ClearBackground(raylib.BLACK);
 
         // TODO: Would it be better to be able to pass a view matrix instead of a Camera to BegingMode3D?
-        raylib.BeginMode3D(firstPersonCamera);
+        raylib.BeginMode3D(first_person_camera);
         {
             self.skybox.draw();
 
-            for (gameState.cubes) |c| {
-                self.cubeMaterial.maps[raylib.MATERIAL_MAP_DIFFUSE].color = c.color;
-                raylib.DrawMesh(c.mesh, self.cubeMaterial, c.localToWorldMatrix);
+            for (game_state.cubes) |c| {
+                self.cube_material.maps[raylib.MATERIAL_MAP_DIFFUSE].color = c.color;
+                raylib.DrawMesh(c.mesh, self.cube_material, c.local_to_world_matrix);
             }
 
-            if (targetedCubeIndex) |i| {
-                const c = gameState.cubes[i];
-                raylib.DrawSphereWires(c.position, c.boundingSphereRadius, 6, 6, raylib.RED);
+            if (targeted_cube_index) |i| {
+                const c = game_state.cubes[i];
+                raylib.DrawSphereWires(c.position, c.bounding_sphere_radius, 6, 6, raylib.RED);
             }
 
             // Draw spheres to show where the lights are
@@ -371,22 +371,22 @@ const Renderer = struct {
 
         drawCrosshair();
         raylib.DrawFPS(10, 10);
-        raylib.DrawText(raylib.TextFormat("Speed: %.1f / %.1f m/s", player.speed, player.targetSpeed), raylib.GetScreenWidth() - 250, raylib.GetScreenHeight() - 30, 20, raylib.LIME);
+        raylib.DrawText(raylib.TextFormat("Speed: %.1f / %.1f m/s", player.speed, player.target_speed), raylib.GetScreenWidth() - 250, raylib.GetScreenHeight() - 30, 20, raylib.LIME);
 
         raylib.EndDrawing();
     }
 
     fn drawCrosshair() void {
-        const crosshairSize = 10;
-        const screenWidth = raylib.GetScreenWidth();
-        const screenHeight = raylib.GetScreenHeight();
-        const screenCenterX = @divTrunc(screenWidth, 2);
-        const screenCenterY = @divTrunc(screenHeight, 2);
-        raylib.DrawLine(screenCenterX, screenCenterY + crosshairSize, screenCenterX, screenCenterY - crosshairSize, raylib.WHITE);
-        raylib.DrawLine(screenCenterX + crosshairSize, screenCenterY, screenCenterX - crosshairSize, screenCenterY, raylib.WHITE);
+        const crosshair_size = 10;
+        const screen_width = raylib.GetScreenWidth();
+        const screen_height = raylib.GetScreenHeight();
+        const screen_center_x = @divTrunc(screen_width, 2);
+        const screen_center_y = @divTrunc(screen_height, 2);
+        raylib.DrawLine(screen_center_x, screen_center_y + crosshair_size, screen_center_x, screen_center_y - crosshair_size, raylib.WHITE);
+        raylib.DrawLine(screen_center_x + crosshair_size, screen_center_y, screen_center_x - crosshair_size, screen_center_y, raylib.WHITE);
 
         // TODO: Should we visualize yaw and pitch changes with a circle?
-        // const mousePosition = raylib.GetMousePosition();
-        // raylib.DrawCircleLinesV(mousePosition, 10, raylib.WHITE);
+        // const mouse_position = raylib.GetMousePosition();
+        // raylib.DrawCircleLinesV(mouse_position, 10, raylib.WHITE);
     }
 };

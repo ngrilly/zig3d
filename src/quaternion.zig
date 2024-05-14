@@ -5,15 +5,15 @@ const raylib = @import("raylib.zig");
 
 /// Rotates the given quaternion by the given angle, around the x-axis.
 pub fn rotateX(q: raylib.Quaternion, angle: f32) raylib.Quaternion {
-    const halfAngle = angle * 0.5;
+    const half_angle = angle * 0.5;
 
     const qx = q.x;
     const qy = q.y;
     const qz = q.z;
     const qw = q.w;
 
-    const bx = std.math.sin(halfAngle);
-    const bw = std.math.cos(halfAngle);
+    const bx = std.math.sin(half_angle);
+    const bw = std.math.cos(half_angle);
 
     return .{
         .x = qx * bw + qw * bx,
@@ -25,15 +25,15 @@ pub fn rotateX(q: raylib.Quaternion, angle: f32) raylib.Quaternion {
 
 /// Rotates the given quaternion by the given angle, around the y-axis.
 pub fn rotateY(q: raylib.Quaternion, angle: f32) raylib.Quaternion {
-    const halfAngle = angle * 0.5;
+    const half_angle = angle * 0.5;
 
     const qx = q.x;
     const qy = q.y;
     const qz = q.z;
     const qw = q.w;
 
-    const by = std.math.sin(halfAngle);
-    const bw = std.math.cos(halfAngle);
+    const by = std.math.sin(half_angle);
+    const bw = std.math.cos(half_angle);
 
     return .{
         .x = qx * bw - qz * by,
@@ -45,15 +45,15 @@ pub fn rotateY(q: raylib.Quaternion, angle: f32) raylib.Quaternion {
 
 /// Rotates the given quaternion by the given angle, around the z-axis.
 pub fn rotateZ(q: raylib.Quaternion, angle: f32) raylib.Quaternion {
-    const halfAngle = angle * 0.5;
+    const half_angle = angle * 0.5;
 
     const qx = q.x;
     const qy = q.y;
     const qz = q.z;
     const qw = q.w;
 
-    const bz = std.math.sin(halfAngle);
-    const bw = std.math.cos(halfAngle);
+    const bz = std.math.sin(half_angle);
+    const bw = std.math.cos(half_angle);
 
     return .{
         .x = qx * bw - qy * bz,
